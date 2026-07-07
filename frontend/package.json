@@ -1,0 +1,27 @@
+{
+  "name": "@service-flow/frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^3.9.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hook-form": "^7.53.0",
+    "react-router-dom": "^6.27.0",
+    "zod": "^3.23.8",
+    "zustand": "^5.0.0-rc.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0-alpha.30",
+    "@types/react": "^18.3.8",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.2",
+    "tailwindcss": "^4.0.0-alpha.30",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.8"
+  }
+}
