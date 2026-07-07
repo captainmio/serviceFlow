@@ -2,50 +2,47 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import type { Customer, CustomerPayload } from "../../../types/customer";
+import type { Service, ServicePayload } from "../../../types/service";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { Select } from "../../ui/select";
-
-const customerFormSchema = z.object({
-  companyName: z.string().trim().min(1, "Company name is required"),
-  contactPerson: z.string().trim().min(1, "Contact person is required"),
-  email: z.string().trim().email("Enter a valid email"),
-  phone: z.string().trim().min(1, "Phone is required"),
-  address: z.string().trim().min(1, "Address is required"),
-  status: z.enum(["active", "inactive"])
-});
-
-type CustomerFormValues = z.infer<typeof customerFormSchema>;
-
-interface CustomerFormProps {
-  isOpen: boolean;
-  initialCustomer?: Customer | null;
-  onClose: () => void;
-  onCancelEdit: () => void;
-  onSubmit: (payload: CustomerPayload) => Promise<boolean>;
-  isSubmitting: boolean;
-}
-
-const defaultValues: CustomerFormValues = {
-  companyName: "",
-  contactPerson: "",
-  email: "",
-  phone: "",
-  address: "",
-  status: "active"
-};
+import { Textarea } from "../../ui/textarea";
 
 const animationDurationMs = 260;
 
-export const CustomerForm = ({
+const serviceFormSchema = z.object({
+  name: z.string().trim().min(1, "Service name is required"),
+  description: z.string().trim().max(255),
+  defaultHourlyRate: z.coerce.number().positive("Default hourly rate must be greater than 0"),
+  status: z.enum(["active", "inactive"])
+});
+
+type ServiceFormValues = z.infer<typeof serviceFormSchema>;
+
+interface ServiceFormProps {
+  isOpen: boolean;
+  initialService?: Service | null;
+  onClose: () => void;
+  onCancelEdit: () => void;
+  onSubmit: (payload: ServicePayload) => Promise<boolean>;
+  isSubmitting: boolean;
+}
+
+const defaultValues: ServiceFormValues = {
+  name: "",
+  description: "",
+  defaultHourlyRate: 120,
+  status: "active"
+};
+
+export const ServiceForm = ({
   isOpen,
-  initialCustomer,
+  initialService,
   onClose,
   onCancelEdit,
   onSubmit,
   isSubmitting
-}: CustomerFormProps) => {
+}: ServiceFormProps) => {
   const [isMounted, setIsMounted] = useState(isOpen);
   const [isVisible, setIsVisible] = useState(false);
   const {
@@ -53,8 +50,8 @@ export const CustomerForm = ({
     handleSubmit,
     reset,
     formState: { errors }
-  } = useForm<CustomerFormValues>({
-    resolver: zodResolver(customerFormSchema),
+  } = useForm<ServiceFormValues>({
+    resolver: zodResolver(serviceFormSchema),
     defaultValues
   });
 
@@ -63,20 +60,18 @@ export const CustomerForm = ({
       return;
     }
 
-    if (initialCustomer) {
+    if (initialService) {
       reset({
-        companyName: initialCustomer.companyName,
-        contactPerson: initialCustomer.contactPerson,
-        email: initialCustomer.email,
-        phone: initialCustomer.phone,
-        address: initialCustomer.address,
-        status: initialCustomer.status
+        name: initialService.name,
+        description: initialService.description,
+        defaultHourlyRate: initialService.defaultHourlyRate,
+        status: initialService.status
       });
       return;
     }
 
     reset(defaultValues);
-  }, [initialCustomer, isOpen, reset]);
+  }, [initialService, isOpen, reset]);
 
   useEffect(() => {
     if (isOpen) {
@@ -128,16 +123,12 @@ export const CustomerForm = ({
         <div className="flex min-h-full flex-col">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-sm font-medium text-[#A3AED0]">Customer details</p>
+              <p className="text-sm font-medium text-[#A3AED0]">Service details</p>
               <h2 className="mt-1 text-xl font-bold text-[#2B3674]">
-                {initialCustomer ? "Edit customer" : "Create customer"}
+                {initialService ? "Edit service" : "Add service"}
               </h2>
             </div>
-            <button
-              className="text-sm font-semibold text-[#4318FF]"
-              type="button"
-              onClick={handleClose}
-            >
+            <button className="text-sm font-semibold text-[#4318FF]" type="button" onClick={handleClose}>
               Close
             </button>
           </div>
@@ -145,31 +136,33 @@ export const CustomerForm = ({
           <form
             className="mt-6 flex min-h-0 flex-1 flex-col"
             onSubmit={handleSubmit(async (values) => {
-              const wasSuccessful = await onSubmit(values);
-
-              if (wasSuccessful && !initialCustomer) {
-                reset(defaultValues);
-              }
+              await onSubmit(values);
             })}
           >
-            <div className="grid gap-4 md:grid-cols-2">
-              <Input label="Company name" error={errors.companyName?.message} {...register("companyName")} />
-              <Input label="Contact person" error={errors.contactPerson?.message} {...register("contactPerson")} />
-              <Input label="Email" type="email" error={errors.email?.message} {...register("email")} />
-              <Input label="Phone" error={errors.phone?.message} {...register("phone")} />
+            <div className="grid gap-4">
+              <Input label="Service name" error={errors.name?.message} {...register("name")} />
+              <Textarea
+                label="Description"
+                error={errors.description?.message}
+                placeholder="Describe what this service includes"
+                {...register("description")}
+              />
               <Input
-                label="Address"
-                error={errors.address?.message}
-                className="md:col-span-2"
-                {...register("address")}
+                label="Default hourly rate"
+                type="number"
+                min="1"
+                step="0.01"
+                error={errors.defaultHourlyRate?.message}
+                {...register("defaultHourlyRate")}
               />
               <Select label="Status" {...register("status")}>
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
               </Select>
             </div>
+
             <div className="mt-auto pt-6">
-              <div className="flex items-end justify-end gap-3 border-t border-[#E9EDF7] pt-4 md:col-span-2">
+              <div className="flex items-end justify-end gap-3 border-t border-[#E9EDF7] pt-4">
                 <button
                   className="inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-semibold text-[#707EAE] transition hover:bg-[#F4F7FE] hover:text-[#2B3674]"
                   type="button"
@@ -178,7 +171,7 @@ export const CustomerForm = ({
                   Cancel
                 </button>
                 <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Saving..." : initialCustomer ? "Update customer" : "Create customer"}
+                  {isSubmitting ? "Saving..." : initialService ? "Update service" : "Add service"}
                 </Button>
               </div>
             </div>

@@ -8,7 +8,10 @@ interface NavigationItem {
   to: string;
 }
 
-const navigationItems: NavigationItem[] = [{ label: "Customer", to: "/customers" }];
+const extendedNavigationItems: NavigationItem[] = [
+  { label: "Customer", to: "/customers" },
+  { label: "Services", to: "/services" }
+];
 
 interface AdminShellProps {
   title: string;
@@ -68,7 +71,7 @@ export const AdminShell = ({ title, eyebrow, description, children }: AdminShell
             </div>
 
             <div className="mt-5 space-y-2">
-              {navigationItems.map((item) => (
+              {extendedNavigationItems.map((item) => (
                 <NavLink
                   key={item.label}
                   to={item.to}
@@ -113,7 +116,7 @@ export const AdminShell = ({ title, eyebrow, description, children }: AdminShell
           </div>
 
           <nav className="mt-10 flex flex-col gap-2">
-            {navigationItems.map((item) => (
+            {extendedNavigationItems.map((item) => (
               <NavLink
                 key={item.label}
                 to={item.to}
