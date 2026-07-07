@@ -1,10 +1,10 @@
 import type { NextFunction, Request, Response } from "express";
-import jwt from "jsonwebtoken";
-import { env } from "../../config/env.js";
 import type { UserRole } from "../../entities/user-role.js";
+import { ACCESS_TOKEN_COOKIE_NAME, verifyToken } from "./auth.service.js";
 
 interface AuthenticatedRequestUser {
   id: string;
+  name: string;
   email: string;
   role: UserRole;
 }
@@ -18,24 +18,34 @@ export const requireAuth = (
   response: Response,
   next: NextFunction
 ) => {
+  const cookieHeader = request.headers.cookie;
   const authorizationHeader = request.headers.authorization;
+  const cookieToken = cookieHeader
+    ?.split(";")
+    .map((entry) => entry.trim())
+    .find((entry) => entry.startsWith(`${ACCESS_TOKEN_COOKIE_NAME}=`))
+    ?.slice(ACCESS_TOKEN_COOKIE_NAME.length + 1);
+  const headerToken = authorizationHeader?.startsWith("Bearer ")
+    ? authorizationHeader.slice("Bearer ".length)
+    : null;
+  const token = cookieToken ? decodeURIComponent(cookieToken) : headerToken;
 
-  if (!authorizationHeader?.startsWith("Bearer ")) {
+  if (!token) {
     response.status(401).json({ message: "Authentication is required" });
     return;
   }
 
-  const token = authorizationHeader.slice("Bearer ".length);
-
   try {
-    const payload = jwt.verify(token, env.JWT_SECRET) as {
-      sub: string;
-      email: string;
-      role: UserRole;
-    };
+    const payload = verifyToken(token);
+
+    if (payload.tokenType !== "access") {
+      response.status(401).json({ message: "Invalid or expired token" });
+      return;
+    }
 
     request.authUser = {
       id: payload.sub,
+      name: payload.name,
       email: payload.email,
       role: payload.role
     };

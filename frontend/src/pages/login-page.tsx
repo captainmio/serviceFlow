@@ -3,9 +3,13 @@ import { LoginForm } from "../components/features/auth/login-form";
 import { useAuthStore } from "../stores/auth-store";
 
 export const LoginPage = () => {
-  const token = useAuthStore((state) => state.token);
+  const status = useAuthStore((state) => state.status);
 
-  if (token) {
+  if (status === "loading") {
+    return <main className="min-h-screen bg-[linear-gradient(180deg,#F4F7FE_0%,#EEF2FF_100%)]" />;
+  }
+
+  if (status === "authenticated") {
     return <Navigate to="/" replace />;
   }
 

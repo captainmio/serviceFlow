@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
+import { logoutRequest } from "../../../services/auth-api";
 import { useAuthStore } from "../../../stores/auth-store";
 import { Button } from "../../ui/button";
 
@@ -22,11 +23,19 @@ interface AdminShellProps {
 
 export const AdminShell = ({ title, eyebrow, description, children }: AdminShellProps) => {
   const user = useAuthStore((state) => state.user);
-  const logout = useAuthStore((state) => state.logout);
+  const setAnonymous = useAuthStore((state) => state.setAnonymous);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logoutRequest();
+    } finally {
+      setAnonymous();
+    }
   };
 
   return (
@@ -93,7 +102,7 @@ export const AdminShell = ({ title, eyebrow, description, children }: AdminShell
                 type="button"
                 onClick={() => {
                   closeMobileMenu();
-                  logout();
+                  void handleLogout();
                 }}
               >
                 Logout
@@ -143,7 +152,9 @@ export const AdminShell = ({ title, eyebrow, description, children }: AdminShell
             </p>
             <Button
               className="mt-5 w-full bg-slate-950 text-white shadow-none hover:bg-slate-800"
-              onClick={() => logout()}
+              onClick={() => {
+                void handleLogout();
+              }}
             >
               Sign out
             </Button>

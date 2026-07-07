@@ -14,7 +14,7 @@ const loginFormSchema = z.object({
 type LoginFormValues = z.infer<typeof loginFormSchema>;
 
 export const LoginForm = () => {
-  const setSession = useAuthStore((state) => state.setSession);
+  const setAuthenticated = useAuthStore((state) => state.setAuthenticated);
   const {
     register,
     handleSubmit,
@@ -31,7 +31,7 @@ export const LoginForm = () => {
   const onSubmit = handleSubmit(async (values) => {
     try {
       const authResponse = await loginRequest(values);
-      setSession(authResponse);
+      setAuthenticated(authResponse.user);
     } catch (error: unknown) {
       setError("root", {
         message: error instanceof Error ? error.message : "Unable to log in"

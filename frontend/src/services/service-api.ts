@@ -1,9 +1,8 @@
 import { config } from "../config";
 import type { Service, ServicePayload, ServiceStatus } from "../types/service";
-import { buildAuthHeaders, parseError } from "./api-client";
+import { fetchJson, jsonHeaders } from "./api-client";
 
 export const fetchServicesRequest = async (
-  token: string,
   options: { search?: string; status?: ServiceStatus | "all" }
 ): Promise<Service[]> => {
   const params = new URLSearchParams();
@@ -17,65 +16,31 @@ export const fetchServicesRequest = async (
   }
 
   const queryString = params.toString();
-  const response = await fetch(`${config.apiBaseUrl}/services${queryString ? `?${queryString}` : ""}`, {
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  });
-
-  if (!response.ok) {
-    await parseError(response);
-  }
-
-  return (await response.json()) as Service[];
+  return fetchJson<Service[]>(`${config.apiBaseUrl}/services${queryString ? `?${queryString}` : ""}`);
 };
 
-export const createServiceRequest = async (
-  token: string,
-  payload: ServicePayload
-): Promise<Service> => {
-  const response = await fetch(`${config.apiBaseUrl}/services`, {
+export const createServiceRequest = async (payload: ServicePayload): Promise<Service> => {
+  return fetchJson<Service>(`${config.apiBaseUrl}/services`, {
     method: "POST",
-    headers: buildAuthHeaders(token),
+    headers: jsonHeaders,
     body: JSON.stringify(payload)
   });
-
-  if (!response.ok) {
-    await parseError(response);
-  }
-
-  return (await response.json()) as Service;
 };
 
 export const updateServiceRequest = async (
-  token: string,
   serviceId: string,
   payload: ServicePayload
 ): Promise<Service> => {
-  const response = await fetch(`${config.apiBaseUrl}/services/${serviceId}`, {
+  return fetchJson<Service>(`${config.apiBaseUrl}/services/${serviceId}`, {
     method: "PUT",
-    headers: buildAuthHeaders(token),
+    headers: jsonHeaders,
     body: JSON.stringify(payload)
   });
-
-  if (!response.ok) {
-    await parseError(response);
-  }
-
-  return (await response.json()) as Service;
 };
 
-export const deactivateServiceRequest = async (token: string, serviceId: string): Promise<Service> => {
-  const response = await fetch(`${config.apiBaseUrl}/services/${serviceId}/deactivate`, {
+export const deactivateServiceRequest = async (serviceId: string): Promise<Service> => {
+  return fetchJson<Service>(`${config.apiBaseUrl}/services/${serviceId}/deactivate`, {
     method: "PATCH",
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
+    headers: undefined
   });
-
-  if (!response.ok) {
-    await parseError(response);
-  }
-
-  return (await response.json()) as Service;
 };

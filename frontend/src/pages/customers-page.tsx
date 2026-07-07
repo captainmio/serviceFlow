@@ -18,7 +18,6 @@ import { useAuthStore } from "../stores/auth-store";
 import type { Customer, CustomerPayload, CustomerStatus } from "../types/customer";
 
 export const CustomersPage = () => {
-  const token = useAuthStore((state) => state.token);
   const user = useAuthStore((state) => state.user);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -35,7 +34,7 @@ export const CustomersPage = () => {
   const canManage = user?.role === "admin" || user?.role === "manager";
 
   const loadCustomers = async (options?: { preserveTable?: boolean }) => {
-    if (!token) {
+    if (!user) {
       return;
     }
 
@@ -46,7 +45,7 @@ export const CustomersPage = () => {
     }
 
     try {
-      const results = await fetchCustomersRequest(token, {
+      const results = await fetchCustomersRequest({
         search: debouncedSearch || undefined,
         status: statusFilter
       });
@@ -63,10 +62,10 @@ export const CustomersPage = () => {
     void loadCustomers({
       preserveTable: customers.length > 0 || debouncedSearch.length > 0 || statusFilter !== "all"
     });
-  }, [token, debouncedSearch, statusFilter]);
+  }, [user, debouncedSearch, statusFilter]);
 
   const handleSubmit = async (payload: CustomerPayload): Promise<boolean> => {
-    if (!token) {
+    if (!user) {
       return false;
     }
 
@@ -74,11 +73,11 @@ export const CustomersPage = () => {
 
     try {
       if (editingCustomer) {
-        await updateCustomerRequest(token, editingCustomer.id, payload);
+        await updateCustomerRequest(editingCustomer.id, payload);
         notify.success("Customer updated successfully.");
         setEditingCustomer(null);
       } else {
-        await createCustomerRequest(token, payload);
+        await createCustomerRequest(payload);
         notify.success("Customer created successfully.");
       }
 
@@ -95,7 +94,7 @@ export const CustomersPage = () => {
   };
 
   const handleDelete = async () => {
-    if (!token) {
+    if (!user) {
       return;
     }
 
@@ -106,7 +105,7 @@ export const CustomersPage = () => {
     setIsDeleteConfirming(true);
 
     try {
-      await deleteCustomerRequest(token, pendingDeleteCustomer.id);
+      await deleteCustomerRequest(pendingDeleteCustomer.id);
       await loadCustomers();
       notify.success("Customer deleted successfully.");
       setPendingDeleteCustomer(null);

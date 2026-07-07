@@ -1,9 +1,8 @@
 import { config } from "../config";
 import type { Customer, CustomerPayload, CustomerStatus } from "../types/customer";
-import { buildAuthHeaders, parseError } from "./api-client";
+import { fetchJson, jsonHeaders } from "./api-client";
 
 export const fetchCustomersRequest = async (
-  token: string,
   options: { search?: string; status?: CustomerStatus | "all" }
 ): Promise<Customer[]> => {
   const params = new URLSearchParams();
@@ -17,66 +16,33 @@ export const fetchCustomersRequest = async (
   }
 
   const queryString = params.toString();
-  const response = await fetch(
-    `${config.apiBaseUrl}/customers${queryString ? `?${queryString}` : ""}`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    }
+  return fetchJson<Customer[]>(
+    `${config.apiBaseUrl}/customers${queryString ? `?${queryString}` : ""}`
   );
-
-  if (!response.ok) {
-    await parseError(response);
-  }
-
-  return (await response.json()) as Customer[];
 };
 
-export const createCustomerRequest = async (
-  token: string,
-  payload: CustomerPayload
-): Promise<Customer> => {
-  const response = await fetch(`${config.apiBaseUrl}/customers`, {
+export const createCustomerRequest = async (payload: CustomerPayload): Promise<Customer> => {
+  return fetchJson<Customer>(`${config.apiBaseUrl}/customers`, {
     method: "POST",
-    headers: buildAuthHeaders(token),
+    headers: jsonHeaders,
     body: JSON.stringify(payload)
   });
-
-  if (!response.ok) {
-    await parseError(response);
-  }
-
-  return (await response.json()) as Customer;
 };
 
 export const updateCustomerRequest = async (
-  token: string,
   customerId: string,
   payload: CustomerPayload
 ): Promise<Customer> => {
-  const response = await fetch(`${config.apiBaseUrl}/customers/${customerId}`, {
+  return fetchJson<Customer>(`${config.apiBaseUrl}/customers/${customerId}`, {
     method: "PUT",
-    headers: buildAuthHeaders(token),
+    headers: jsonHeaders,
     body: JSON.stringify(payload)
   });
-
-  if (!response.ok) {
-    await parseError(response);
-  }
-
-  return (await response.json()) as Customer;
 };
 
-export const deleteCustomerRequest = async (token: string, customerId: string): Promise<void> => {
-  const response = await fetch(`${config.apiBaseUrl}/customers/${customerId}`, {
+export const deleteCustomerRequest = async (customerId: string): Promise<void> => {
+  await fetchJson<void>(`${config.apiBaseUrl}/customers/${customerId}`, {
     method: "DELETE",
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
+    headers: undefined
   });
-
-  if (!response.ok) {
-    await parseError(response);
-  }
 };

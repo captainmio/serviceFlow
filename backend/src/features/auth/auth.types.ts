@@ -8,12 +8,13 @@ export interface AuthenticatedUser {
 }
 
 export interface AuthResponse {
-  token: string;
   user: AuthenticatedUser;
 }
 
 export interface JwtPayload {
   sub: string;
+  name: string;
   email: string;
   role: UserRole;
+  tokenType: "access" | "refresh";
 }

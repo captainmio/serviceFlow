@@ -1,45 +1,32 @@
 import { create } from "zustand";
-import type { AuthResponse, AuthUser } from "../types/auth";
+import type { AuthUser } from "../types/auth";
 
 interface AuthState {
-  token: string | null;
+  status: "loading" | "authenticated" | "anonymous";
   user: AuthUser | null;
-  setSession: (session: AuthResponse) => void;
-  logout: () => void;
+  setAuthenticated: (user: AuthUser) => void;
+  setAnonymous: () => void;
+  setLoading: () => void;
 }
 
-const readInitialToken = () => window.localStorage.getItem("service-flow-token");
-const readInitialUser = (): AuthUser | null => {
-  const storedUser = window.localStorage.getItem("service-flow-user");
-
-  if (!storedUser) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(storedUser) as AuthUser;
-  } catch {
-    return null;
-  }
-};
-
 export const useAuthStore = create<AuthState>((set) => ({
-  token: readInitialToken(),
-  user: readInitialUser(),
-  setSession: (session) => {
-    window.localStorage.setItem("service-flow-token", session.token);
-    window.localStorage.setItem("service-flow-user", JSON.stringify(session.user));
+  status: "loading",
+  user: null,
+  setAuthenticated: (user) => {
     set({
-      token: session.token,
-      user: session.user
+      status: "authenticated",
+      user
     });
   },
-  logout: () => {
-    window.localStorage.removeItem("service-flow-token");
-    window.localStorage.removeItem("service-flow-user");
+  setAnonymous: () => {
     set({
-      token: null,
+      status: "anonymous",
       user: null
+    });
+  },
+  setLoading: () => {
+    set({
+      status: "loading"
     });
   }
 }));

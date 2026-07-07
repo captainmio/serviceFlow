@@ -18,7 +18,6 @@ import { useAuthStore } from "../stores/auth-store";
 import type { Service, ServicePayload, ServiceStatus } from "../types/service";
 
 export const ServicesPage = () => {
-  const token = useAuthStore((state) => state.token);
   const user = useAuthStore((state) => state.user);
   const [services, setServices] = useState<Service[]>([]);
   const [editingService, setEditingService] = useState<Service | null>(null);
@@ -35,7 +34,7 @@ export const ServicesPage = () => {
   const canManage = user?.role === "admin" || user?.role === "manager";
 
   const loadServices = async (options?: { preserveTable?: boolean }) => {
-    if (!token) {
+    if (!user) {
       return;
     }
 
@@ -46,7 +45,7 @@ export const ServicesPage = () => {
     }
 
     try {
-      const results = await fetchServicesRequest(token, {
+      const results = await fetchServicesRequest({
         search: debouncedSearch || undefined,
         status: statusFilter
       });
@@ -63,10 +62,10 @@ export const ServicesPage = () => {
     void loadServices({
       preserveTable: services.length > 0 || debouncedSearch.length > 0 || statusFilter !== "all"
     });
-  }, [token, debouncedSearch, statusFilter]);
+  }, [user, debouncedSearch, statusFilter]);
 
   const handleServiceSubmit = async (payload: ServicePayload): Promise<boolean> => {
-    if (!token) {
+    if (!user) {
       return false;
     }
 
@@ -74,11 +73,11 @@ export const ServicesPage = () => {
 
     try {
       if (editingService) {
-        await updateServiceRequest(token, editingService.id, payload);
+        await updateServiceRequest(editingService.id, payload);
         notify.success("Service updated successfully.");
         setEditingService(null);
       } else {
-        await createServiceRequest(token, payload);
+        await createServiceRequest(payload);
         notify.success("Service added successfully.");
       }
 
@@ -94,14 +93,14 @@ export const ServicesPage = () => {
   };
 
   const handleDeactivate = async () => {
-    if (!token || !pendingDeactivateService) {
+    if (!user || !pendingDeactivateService) {
       return;
     }
 
     setIsDeactivating(true);
 
     try {
-      await deactivateServiceRequest(token, pendingDeactivateService.id);
+      await deactivateServiceRequest(pendingDeactivateService.id);
       notify.success("Service deactivated successfully.");
       setPendingDeactivateService(null);
       await loadServices();

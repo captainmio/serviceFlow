@@ -3,36 +3,52 @@ import jwt, { type SignOptions } from "jsonwebtoken";
 import { env } from "../../config/env.js";
 import { appDataSource } from "../../database/data-source.js";
 import { User } from "../../entities/user.entity.js";
-import type { AuthResponse, JwtPayload } from "./auth.types.js";
+import type { AuthResponse, AuthenticatedUser, JwtPayload } from "./auth.types.js";
 import type { LoginInput } from "./auth.schema.js";
 
+export const ACCESS_TOKEN_COOKIE_NAME = "serviceflow_access_token";
+export const REFRESH_TOKEN_COOKIE_NAME = "serviceflow_refresh_token";
+export const ACCESS_TOKEN_MAX_AGE_MS = 15 * 60 * 1000;
+export const REFRESH_TOKEN_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+const buildAuthenticatedUser = (user: User): AuthenticatedUser => ({
+  id: user.id,
+  name: user.name,
+  email: user.email,
+  role: user.role
+});
+
+const signToken = (payload: JwtPayload, expiresIn: SignOptions["expiresIn"]) =>
+  jwt.sign(payload, env.JWT_SECRET, { expiresIn });
+
 const buildAuthResponse = (user: User): AuthResponse => {
+  return {
+    user: buildAuthenticatedUser(user)
+  };
+};
+
+export const buildAuthTokens = (user: User) => {
+  const basePayload = {
+    sub: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role
+  } satisfies Omit<JwtPayload, "tokenType">;
+
   const signOptions: SignOptions = {
     expiresIn: env.JWT_EXPIRES_IN as SignOptions["expiresIn"]
   };
 
-  const token = jwt.sign(
-    {
-      sub: user.id,
-      email: user.email,
-      role: user.role
-    } satisfies JwtPayload,
-    env.JWT_SECRET,
-    signOptions
-  );
-
   return {
-    token,
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role
-    }
+    accessToken: signToken({ ...basePayload, tokenType: "access" }, signOptions.expiresIn),
+    refreshToken: signToken(
+      { ...basePayload, tokenType: "refresh" },
+      env.JWT_REFRESH_EXPIRES_IN as SignOptions["expiresIn"]
+    )
   };
 };
 
-export const login = async ({ email, password }: LoginInput): Promise<AuthResponse> => {
+export const login = async ({ email, password }: LoginInput): Promise<User> => {
   const userRepository = appDataSource.getRepository(User);
   const normalizedEmail = email.trim().toLowerCase();
 
@@ -50,5 +66,17 @@ export const login = async ({ email, password }: LoginInput): Promise<AuthRespon
     throw new Error("Invalid email or password");
   }
 
-  return buildAuthResponse(user);
+  return user;
+};
+
+export const buildSessionResponse = (user: User): AuthResponse => buildAuthResponse(user);
+
+export const verifyToken = (token: string): JwtPayload => jwt.verify(token, env.JWT_SECRET) as JwtPayload;
+
+export const findUserById = async (userId: string): Promise<User | null> => {
+  const userRepository = appDataSource.getRepository(User);
+
+  return userRepository.findOne({
+    where: { id: userId }
+  });
 };
