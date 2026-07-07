@@ -1,5 +1,6 @@
 import { config } from "../config";
 import type { AuthResponse } from "../types/auth";
+import { parseError } from "./api-client";
 
 interface LoginPayload {
   email: string;
@@ -16,8 +17,7 @@ export const loginRequest = async (payload: LoginPayload): Promise<AuthResponse>
   });
 
   if (!response.ok) {
-    const errorBody = (await response.json().catch(() => null)) as { message?: string } | null;
-    throw new Error(errorBody?.message ?? "Login failed");
+    await parseError(response);
   }
 
   return (await response.json()) as AuthResponse;

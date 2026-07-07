@@ -75,7 +75,7 @@ export const LoginPage = () => {
               <p className="text-sm font-medium text-[#A3AED0]">Welcome back</p>
               <h2 className="text-3xl font-bold tracking-tight text-[#2B3674]">Sign in</h2>
               <p className="text-sm leading-6 text-[#707EAE]">
-                Use the seeded admin account to enter the dashboard and continue building the platform.
+                Use the seeded admin account to enter the customer workspace and continue building the platform.
               </p>
             </div>
             <LoginForm />

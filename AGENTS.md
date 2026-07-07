@@ -13,6 +13,9 @@
 * **Typing:** Never use `any`. Explicitly define interfaces and types.
 * **Components:** Default to small, focused components with a target max of 200 lines per file.
 * **UI components:** Reuse frontend UI primitives such as buttons, inputs, cards, and layout wrappers throughout the app. Create a new component if changing an existing one would make it too specific.
+* **Notifications:** Use a single global notification system for user-facing success, error, and informational feedback. In this project, use `react-toastify` instead of ad hoc inline alerts for mutation results.
+* **Form state preservation:** Do not clear or reset user-entered values in inputs, textareas, selects, or other low-level UI controls when a submission fails. Preserve the entered data so the user can correct and resubmit.
+* **Destructive actions:** Confirm delete and other destructive actions with a modal before executing them. Reuse a shared confirmation-modal pattern for future delete flows.
 * **Styling:** Use Tailwind utility classes; avoid custom CSS unless strictly necessary.
 * **Functions:** Prefer arrow functions and functional programming principles where practical.
 * **Security:** Never hardcode API URLs. Read them from `.env` variables.
@@ -25,7 +28,7 @@
 * **Data-first pages:** Customer, job, invoice, and payment screens should lead with summary metrics and then move into tables, lists, or activity panels.
 * **Color direction:** Base the interface around `#F4F7FE`, `#FFFFFF`, `#2B3674`, `#707EAE`, `#A3AED0`, with a strong accent around `#4318FF`.
 * **Interaction style:** Buttons, pills, and active navigation states should feel soft and confident, using rounded-pill or soft-rounded shapes.
-* **Reuse expectations:** Extract and reuse shared layout pieces such as sidebar, header, metric cards, section cards, and table wrappers before duplicating page patterns.
+* **Reuse expectations:** Extract and reuse shared layout pieces such as sidebar, header, metric cards, section cards, table wrappers, shared modals, and slide-over wrappers before duplicating page patterns.
 
 ## 3. Execution Commands
 * **Install Dependencies:** `npm install` (prefer `pnpm install` where applicable).
@@ -41,7 +44,15 @@
 
 ## 5. Testing
 * **Bug fixes:** Reproduce the bug with a test first when practical, then make it pass.
+* **Browser console:** New pages and UI changes should be free of browser console errors and warnings in normal use.
 * **Feature tests:** Create feature test files for new pages and new features. Cover the primary user flow, not just helper functions.
+* **Hover behavior:** Buttons, links, and button-like controls should clearly present pointer cursor feedback on hover.
+* **Interactive fields:** Explicitly verify that inputs, selects, textareas, buttons, dialogs, modals, and slide-over forms are clickable, focusable, and editable after UI changes.
+* **Form primitives:** Custom form controls used with `react-hook-form` must forward refs correctly.
+* **Failed-submit UX:** Verify that failed form submissions keep the user’s current input values intact and only show validation or notification feedback.
+* **Motion UX:** Slide-over panels should animate smoothly on both open and close without breaking click behavior or clearing state unexpectedly.
+* **Notification UX:** Mutation failures and successes should appear through the global toast system in the correct context, especially for duplicate or conflict errors.
+* **Search UX:** Search-driven screens should debounce user input, avoid flickering the whole layout during filtering, and use stable loading states or overlays before showing updated results.
 * **Validation tests:** Add focused tests for form validation, schema validation, and permission-sensitive behavior.
 * **Expectation:** Always create test cases for new features, validation, or bug fixes where practical.
 

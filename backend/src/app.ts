@@ -2,6 +2,7 @@ import cors from "cors";
 import express from "express";
 import { env } from "./config/env.js";
 import { authRouter } from "./features/auth/auth.routes.js";
+import { customerRouter } from "./features/customers/customer.routes.js";
 
 export const createApp = () => {
   const app = express();
@@ -18,6 +19,7 @@ export const createApp = () => {
   });
 
   app.use("/api/auth", authRouter);
+  app.use("/api/customers", customerRouter);
 
   return app;
 };

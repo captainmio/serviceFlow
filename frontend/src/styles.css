@@ -12,6 +12,41 @@ body {
   min-height: 100vh;
 }
 
+button,
+a,
+[role="button"] {
+  cursor: pointer;
+}
+
 * {
   box-sizing: border-box;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.Toastify__toast {
+  border-radius: 1rem;
+  box-shadow: 0 20px 60px rgba(11, 20, 55, 0.12);
+  font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
+}
+
+.Toastify__toast-theme--light {
+  background: #ffffff;
+  color: #2b3674;
+}
+
+.Toastify__progress-bar--success {
+  background: #05cd99;
+}
+
+.Toastify__progress-bar--error {
+  background: #ef4444;
 }

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuthStore } from "../../../stores/auth-store";
 import { Button } from "../../ui/button";
@@ -8,12 +8,7 @@ interface NavigationItem {
   to: string;
 }
 
-const navigationItems: NavigationItem[] = [
-  { label: "Dashboard", to: "/" },
-  { label: "Customers", to: "/" },
-  { label: "Projects", to: "/" },
-  { label: "Invoices", to: "/" }
-];
+const navigationItems: NavigationItem[] = [{ label: "Customer", to: "/customers" }];
 
 interface AdminShellProps {
   title: string;
@@ -25,11 +20,88 @@ interface AdminShellProps {
 export const AdminShell = ({ title, eyebrow, description, children }: AdminShellProps) => {
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const closeMobileMenu = () => {
+    setIsMobileMenuOpen(false);
+  };
 
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#F4F7FE_0%,#EEF2FF_100%)] px-4 py-4 text-[#1B2559] sm:px-6">
-      <div className="mx-auto grid min-h-[calc(100vh-2rem)] max-w-[1440px] gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="flex flex-col rounded-[2rem] bg-white px-6 py-7 shadow-[0_20px_60px_rgba(11,20,55,0.08)]">
+      <div className="mx-auto flex max-w-[1440px] items-center justify-between rounded-[1.75rem] bg-white px-4 py-4 shadow-[0_20px_60px_rgba(11,20,55,0.08)] lg:hidden">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#4318FF] text-base font-bold text-white">
+            S
+          </div>
+          <div>
+            <p className="text-base font-bold tracking-tight text-[#2B3674]">ServiceFlow</p>
+            <p className="text-xs text-[#A3AED0]">Operations Admin</p>
+          </div>
+        </div>
+
+        <button
+          className="inline-flex h-11 items-center justify-center rounded-full bg-[#4318FF] px-5 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(67,24,255,0.22)] transition hover:bg-[#3311cc]"
+          type="button"
+          onClick={() => setIsMobileMenuOpen(true)}
+        >
+          Menu
+        </button>
+      </div>
+
+      {isMobileMenuOpen ? (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="absolute inset-0 bg-[#0B1437]/35" onClick={closeMobileMenu} />
+
+          <section className="absolute right-4 top-4 z-10 w-[min(22rem,calc(100vw-2rem))] rounded-[2rem] bg-white p-5 shadow-[0_24px_80px_rgba(11,20,55,0.18)]">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-lg font-bold tracking-tight text-[#2B3674]">Menu</p>
+                <p className="text-sm text-[#A3AED0]">{user?.name ?? "Unknown User"}</p>
+              </div>
+              <button
+                className="text-sm font-semibold text-[#4318FF]"
+                type="button"
+                onClick={closeMobileMenu}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-2">
+              {navigationItems.map((item) => (
+                <NavLink
+                  key={item.label}
+                  to={item.to}
+                  onClick={closeMobileMenu}
+                  className={({ isActive }) =>
+                    [
+                      "flex min-h-12 items-center rounded-2xl px-4 py-3 text-sm font-semibold transition",
+                      isActive
+                        ? "bg-[#F4F7FE] text-[#4318FF]"
+                        : "bg-[#FBFCFF] text-[#707EAE] hover:bg-[#F8FAFF] hover:text-[#2B3674]"
+                    ].join(" ")
+                  }
+                >
+                  {item.label}
+                </NavLink>
+              ))}
+              <button
+                className="flex min-h-12 w-full items-center rounded-2xl bg-[#FBFCFF] px-4 py-3 text-left text-sm font-semibold text-rose-600 transition hover:bg-rose-50"
+                type="button"
+                onClick={() => {
+                  closeMobileMenu();
+                  logout();
+                }}
+              >
+                Logout
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      <div className="mx-auto mt-4 grid min-h-[calc(100vh-2rem)] max-w-[1440px] gap-5 lg:mt-0 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <aside className="hidden flex-col rounded-[2rem] bg-white px-6 py-7 shadow-[0_20px_60px_rgba(11,20,55,0.08)] lg:flex">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#4318FF] text-lg font-bold text-white">
               S
@@ -67,7 +139,7 @@ export const AdminShell = ({ title, eyebrow, description, children }: AdminShell
               {user?.role ?? "guest"}
             </p>
             <Button
-              className="mt-5 w-full bg-white text-[#4318FF] shadow-none hover:bg-[#EEF2FF]"
+              className="mt-5 w-full bg-slate-950 text-white shadow-none hover:bg-slate-800"
               onClick={() => logout()}
             >
               Sign out
@@ -76,14 +148,11 @@ export const AdminShell = ({ title, eyebrow, description, children }: AdminShell
         </aside>
 
         <section className="flex min-w-0 flex-col gap-5">
-          <header className="flex flex-col gap-4 rounded-[2rem] bg-white px-6 py-6 shadow-[0_20px_60px_rgba(11,20,55,0.08)] md:flex-row md:items-center md:justify-between">
+          <header className="flex flex-col gap-3 rounded-[2rem] px-2 py-1 sm:px-4 md:flex-row md:items-center md:justify-between lg:px-6 lg:pt-2">
             <div>
               <p className="text-sm font-medium text-[#A3AED0]">{eyebrow}</p>
-              <h1 className="mt-1 text-3xl font-bold tracking-tight text-[#2B3674]">{title}</h1>
-              <p className="mt-2 text-sm text-[#707EAE]">{description}</p>
-            </div>
-            <div className="rounded-2xl border border-[#E9EDF7] bg-[#F8FAFF] px-4 py-3 text-sm text-[#707EAE]">
-              Secure workspace with JWT session handling
+              <h1 className="mt-1 text-3xl font-bold tracking-tight text-[#2B3674] sm:text-4xl">{title}</h1>
+              {description ? <p className="mt-2 text-sm text-[#707EAE]">{description}</p> : null}
             </div>
           </header>
 

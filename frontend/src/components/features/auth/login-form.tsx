@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { loginRequest } from "../../../lib/api";
+import { loginRequest } from "../../../services/auth-api";
 import { useAuthStore } from "../../../stores/auth-store";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";

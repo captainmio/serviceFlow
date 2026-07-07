@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
-import { DashboardPage } from "./pages/dashboard-page";
+import { CustomersPage } from "./pages/customers-page";
 import { LoginPage } from "./pages/login-page";
 import { useAuthStore } from "./stores/auth-store";
 
@@ -17,11 +17,12 @@ export const App = () => {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/" element={<Navigate to="/customers" replace />} />
       <Route
-        path="/"
+        path="/customers"
         element={
           <ProtectedRoute>
-            <DashboardPage />
+            <CustomersPage />
           </ProtectedRoute>
         }
       />
