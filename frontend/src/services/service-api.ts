@@ -1,6 +1,5 @@
-import { config } from "../config";
 import type { Service, ServicePayload, ServiceStatus } from "../types/service";
-import { fetchJson, jsonHeaders } from "./api-client";
+import { apiClient } from "./api-client";
 
 export const fetchServicesRequest = async (
   options: { search?: string; status?: ServiceStatus | "all" }
@@ -16,31 +15,24 @@ export const fetchServicesRequest = async (
   }
 
   const queryString = params.toString();
-  return fetchJson<Service[]>(`${config.apiBaseUrl}/services${queryString ? `?${queryString}` : ""}`);
+  const { data } = await apiClient.get<Service[]>(`/services${queryString ? `?${queryString}` : ""}`);
+  return data;
 };
 
 export const createServiceRequest = async (payload: ServicePayload): Promise<Service> => {
-  return fetchJson<Service>(`${config.apiBaseUrl}/services`, {
-    method: "POST",
-    headers: jsonHeaders,
-    body: JSON.stringify(payload)
-  });
+  const { data } = await apiClient.post<Service>("/services", payload);
+  return data;
 };
 
 export const updateServiceRequest = async (
   serviceId: string,
   payload: ServicePayload
 ): Promise<Service> => {
-  return fetchJson<Service>(`${config.apiBaseUrl}/services/${serviceId}`, {
-    method: "PUT",
-    headers: jsonHeaders,
-    body: JSON.stringify(payload)
-  });
+  const { data } = await apiClient.put<Service>(`/services/${serviceId}`, payload);
+  return data;
 };
 
 export const deactivateServiceRequest = async (serviceId: string): Promise<Service> => {
-  return fetchJson<Service>(`${config.apiBaseUrl}/services/${serviceId}/deactivate`, {
-    method: "PATCH",
-    headers: undefined
-  });
+  const { data } = await apiClient.patch<Service>(`/services/${serviceId}/deactivate`);
+  return data;
 };

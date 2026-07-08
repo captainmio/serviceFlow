@@ -4,7 +4,7 @@
 * **Purpose:** A small service company uses the system to manage customers, jobs/projects, work logs, expenses, invoices, and payment status.
 * **Techstack:**
   - **Backend:** Node.js, TypeScript, Express.js, TypeORM, MySQL, bcrypt, JWT
-  - **Frontend:** React, TypeScript, Zod, TailwindCSS v4, React Router, React Hook Form, Recharts, Zustand
+  - **Frontend:** React, TypeScript, Zod, TailwindCSS v4, React Router, React Hook Form, Recharts, Zustand, Axios
 * **Architecture:** Client-server with separate `frontend` and `backend` folders.
 
 ## 2. Coding Style & Conventions

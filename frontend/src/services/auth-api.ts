@@ -1,6 +1,5 @@
-import { config } from "../config";
 import type { AuthResponse } from "../types/auth";
-import { fetchJson, jsonHeaders, parseError } from "./api-client";
+import { apiClient } from "./api-client";
 
 interface LoginPayload {
   email: string;
@@ -8,25 +7,15 @@ interface LoginPayload {
 }
 
 export const loginRequest = async (payload: LoginPayload): Promise<AuthResponse> => {
-  return fetchJson<AuthResponse>(`${config.apiBaseUrl}/auth/login`, {
-    method: "POST",
-    headers: jsonHeaders,
-    retryOnAuth: false,
-    body: JSON.stringify(payload)
-  });
+  const { data } = await apiClient.post<AuthResponse>("/auth/login", payload);
+  return data;
 };
 
 export const getSessionRequest = async (): Promise<AuthResponse> => {
-  return fetchJson<AuthResponse>(`${config.apiBaseUrl}/auth/session`);
+  const { data } = await apiClient.get<AuthResponse>("/auth/session");
+  return data;
 };
 
 export const logoutRequest = async (): Promise<void> => {
-  const response = await fetch(`${config.apiBaseUrl}/auth/logout`, {
-    method: "POST",
-    credentials: "include"
-  });
-
-  if (!response.ok) {
-    await parseError(response);
-  }
+  await apiClient.post("/auth/logout");
 };

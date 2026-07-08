@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { CustomersPage } from "./pages/customers-page";
 import { LoginPage } from "./pages/login-page";
+import { NotFoundPage } from "./pages/not-found-page";
 import { ServicesPage } from "./pages/services-page";
 import { getSessionRequest } from "./services/auth-api";
 import { useAuthStore } from "./stores/auth-store";
@@ -60,6 +61,7 @@ export const App = () => {
           </ProtectedRoute>
         }
       />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 };

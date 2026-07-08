@@ -1,6 +1,5 @@
-import { config } from "../config";
 import type { Customer, CustomerPayload, CustomerStatus } from "../types/customer";
-import { fetchJson, jsonHeaders } from "./api-client";
+import { apiClient } from "./api-client";
 
 export const fetchCustomersRequest = async (
   options: { search?: string; status?: CustomerStatus | "all" }
@@ -16,33 +15,23 @@ export const fetchCustomersRequest = async (
   }
 
   const queryString = params.toString();
-  return fetchJson<Customer[]>(
-    `${config.apiBaseUrl}/customers${queryString ? `?${queryString}` : ""}`
-  );
+  const { data } = await apiClient.get<Customer[]>(`/customers${queryString ? `?${queryString}` : ""}`);
+  return data;
 };
 
 export const createCustomerRequest = async (payload: CustomerPayload): Promise<Customer> => {
-  return fetchJson<Customer>(`${config.apiBaseUrl}/customers`, {
-    method: "POST",
-    headers: jsonHeaders,
-    body: JSON.stringify(payload)
-  });
+  const { data } = await apiClient.post<Customer>("/customers", payload);
+  return data;
 };
 
 export const updateCustomerRequest = async (
   customerId: string,
   payload: CustomerPayload
 ): Promise<Customer> => {
-  return fetchJson<Customer>(`${config.apiBaseUrl}/customers/${customerId}`, {
-    method: "PUT",
-    headers: jsonHeaders,
-    body: JSON.stringify(payload)
-  });
+  const { data } = await apiClient.put<Customer>(`/customers/${customerId}`, payload);
+  return data;
 };
 
 export const deleteCustomerRequest = async (customerId: string): Promise<void> => {
-  await fetchJson<void>(`${config.apiBaseUrl}/customers/${customerId}`, {
-    method: "DELETE",
-    headers: undefined
-  });
+  await apiClient.delete(`/customers/${customerId}`);
 };
