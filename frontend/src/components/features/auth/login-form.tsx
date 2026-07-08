@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { loginRequest } from "../../../services/auth-api";
+import { notify } from "../../../lib/notify";
 import { useAuthStore } from "../../../stores/auth-store";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
@@ -32,15 +33,32 @@ export const LoginForm = () => {
     try {
       const authResponse = await loginRequest(values);
       setAuthenticated(authResponse.user);
+      notify.success("Signed in successfully.");
     } catch (error: unknown) {
+      notify.error(error instanceof Error ? error.message : "Unable to log in");
       setError("root", {
         message: error instanceof Error ? error.message : "Unable to log in"
       });
     }
   });
 
+  const handleInvalidSubmit = () => {
+    notify.error("Please fix the highlighted login form errors and try again.");
+  };
+
   return (
-    <form className="flex flex-col gap-5" onSubmit={onSubmit}>
+    <form className="flex flex-col gap-5" onSubmit={handleSubmit(async (values) => {
+      try {
+        const authResponse = await loginRequest(values);
+        setAuthenticated(authResponse.user);
+        notify.success("Signed in successfully.");
+      } catch (error: unknown) {
+        notify.error(error instanceof Error ? error.message : "Unable to log in");
+        setError("root", {
+          message: error instanceof Error ? error.message : "Unable to log in"
+        });
+      }
+    }, handleInvalidSubmit)}>
       <Input
         label="Username or email"
         type="text"

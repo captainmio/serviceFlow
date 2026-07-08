@@ -2,9 +2,11 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn
 } from "typeorm";
+import { JobService } from "./job-service.entity.js";
 import { serviceStatuses } from "./service-status.js";
 
 const decimalTransformer = {
@@ -38,6 +40,9 @@ export class Service {
     default: "active"
   })
   status!: (typeof serviceStatuses)[number];
+
+  @OneToMany(() => JobService, (jobService) => jobService.service)
+  jobServices!: JobService[];
 
   @CreateDateColumn({ name: "created_at" })
   createdAt!: Date;

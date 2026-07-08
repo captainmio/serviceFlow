@@ -3,6 +3,7 @@ import { NavLink } from "react-router-dom";
 import { logoutRequest } from "../../../services/auth-api";
 import { useAuthStore } from "../../../stores/auth-store";
 import { Button } from "../../ui/button";
+import { EditProfileModal } from "./edit-profile-modal";
 
 interface NavigationItem {
   label: string;
@@ -13,9 +14,15 @@ interface NavigationItem {
 const extendedNavigationItems: NavigationItem[] = [
   { label: "Customers", to: "/customers" },
   { label: "Services", to: "/services", roles: ["admin"] },
-  { label: "Projects", to: "/projects" },
+  { label: "Projects", to: "/projects", roles: ["admin", "manager"] },
   { label: "Team Members", to: "/team-members", roles: ["admin", "manager"] }
 ];
+
+const roleLabels = {
+  admin: "Admin",
+  manager: "Manager",
+  team_member: "Team member"
+} as const;
 
 interface AppShellProps {
   title: string;
@@ -28,6 +35,7 @@ export const AppShell = ({ title, eyebrow, description, children }: AppShellProp
   const user = useAuthStore((state) => state.user);
   const setAnonymous = useAuthStore((state) => state.setAnonymous);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const visibleNavigationItems = extendedNavigationItems.filter(
     (item) => !item.roles || (user ? item.roles.includes(user.role as "admin" | "manager") : false)
   );
@@ -154,10 +162,16 @@ export const AppShell = ({ title, eyebrow, description, children }: AppShellProp
             <h2 className="mt-3 text-xl font-bold">{user?.name ?? "Unknown User"}</h2>
             <p className="mt-1 text-sm text-white/80">{user?.email ?? "No email"}</p>
             <p className="mt-4 inline-flex rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]">
-              {user?.role ?? "guest"}
+              {user ? roleLabels[user.role] : "Guest"}
             </p>
             <Button
-              className="mt-5 w-full bg-slate-950 text-white shadow-none hover:bg-slate-800"
+              className="mt-5 w-full bg-white/15 text-white shadow-none hover:bg-white/20"
+              onClick={() => setIsEditProfileOpen(true)}
+            >
+              Edit Profile
+            </Button>
+            <Button
+              className="mt-3 w-full bg-slate-950 text-white shadow-none hover:bg-slate-800"
               onClick={() => {
                 void handleLogout();
               }}
@@ -181,6 +195,7 @@ export const AppShell = ({ title, eyebrow, description, children }: AppShellProp
           </div>
         </section>
       </div>
+      <EditProfileModal isOpen={isEditProfileOpen} onClose={() => setIsEditProfileOpen(false)} />
     </main>
   );
 };

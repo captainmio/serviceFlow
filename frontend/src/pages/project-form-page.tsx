@@ -17,10 +17,12 @@ import {
   fetchProjectRequest,
   updateProjectRequest
 } from "../services/project-api";
-import { fetchAssignableUsersRequest } from "../services/user-api";
+import { fetchServicesRequest } from "../services/service-api";
+import { fetchAssignableUsersRequest, fetchProjectManagersRequest } from "../services/user-api";
 import { useAuthStore } from "../stores/auth-store";
 import type { Customer } from "../types/customer";
-import type { Project, ProjectPayload, ProjectStatus } from "../types/project";
+import type { Project, ProjectPayload, ProjectServiceAssignmentPayload, ProjectStatus } from "../types/project";
+import type { Service } from "../types/service";
 import type { UserOption } from "../types/user";
 
 const projectStatusOptions: Array<{ value: ProjectStatus; label: string }> = [
@@ -38,9 +40,16 @@ const projectStatusOptions: Array<{ value: ProjectStatus; label: string }> = [
 const projectFormSchema = z
   .object({
     customerId: z.string().trim().min(1, "Customer is required"),
+    projectManagerId: z.string().trim().min(1, "Project manager is required"),
     title: z.string().trim().min(1, "Title is required"),
     description: z.string().trim().max(2000),
-    assignedToIds: z.array(z.string()),
+    serviceAssignments: z.array(
+      z.object({
+        serviceId: z.string().trim().min(1, "Service is required"),
+        hourlyRate: z.coerce.number().positive("Hourly rate must be greater than zero"),
+        assignedToIds: z.array(z.string()).min(1, "Assign at least one user to this service")
+      })
+    ).min(1, "Add at least one service to the project"),
     status: z.enum([
       "draft",
       "assigned",
@@ -67,14 +76,6 @@ const projectFormSchema = z
       });
     }
 
-    if (requiresDates && !value.dueDate) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Due date is required for this status",
-        path: ["dueDate"]
-      });
-    }
-
     if (value.startDate && value.dueDate && value.startDate > value.dueDate) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
@@ -90,15 +91,30 @@ const projectFormSchema = z
         path: ["rejectionReason"]
       });
     }
+
+    const seenServiceIds = new Set<string>();
+
+    value.serviceAssignments.forEach((serviceAssignment, index) => {
+      if (seenServiceIds.has(serviceAssignment.serviceId)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Each service can only be added once per project",
+          path: ["serviceAssignments", index, "serviceId"]
+        });
+      }
+
+      seenServiceIds.add(serviceAssignment.serviceId);
+    });
   });
 
 type ProjectFormValues = z.infer<typeof projectFormSchema>;
 
 const emptyValues: ProjectFormValues = {
   customerId: "",
+  projectManagerId: "",
   title: "",
   description: "",
-  assignedToIds: [],
+  serviceAssignments: [],
   status: "draft",
   startDate: "",
   dueDate: "",
@@ -110,9 +126,14 @@ const formatDateTime = (value: string | null) =>
 
 const toProjectFormValues = (project: Project): ProjectFormValues => ({
   customerId: project.customerId,
+  projectManagerId: project.projectManagerId,
   title: project.title,
   description: project.description,
-  assignedToIds: project.assignedTo.map((member) => member.id),
+  serviceAssignments: project.serviceAssignments.map((serviceAssignment) => ({
+    serviceId: serviceAssignment.serviceId,
+    hourlyRate: serviceAssignment.hourlyRate,
+    assignedToIds: serviceAssignment.assignedTo.map((member) => member.id)
+  })),
   status: project.status,
   startDate: project.startDate ?? "",
   dueDate: project.dueDate ?? "",
@@ -124,13 +145,17 @@ export const ProjectFormPage = () => {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [projectManagers, setProjectManagers] = useState<UserOption[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
   const [assignableUsers, setAssignableUsers] = useState<UserOption[]>([]);
   const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
   const isEditing = Boolean(projectId);
-  const canManage = user?.role === "admin" || user?.role === "manager";
+  const canView = user?.role === "admin" || user?.role === "manager";
+  const canManage = user?.role === "admin";
+  const isReadOnly = user?.role === "manager";
   const {
     register,
     handleSubmit,
@@ -144,7 +169,7 @@ export const ProjectFormPage = () => {
   });
 
   const selectedStatus = watch("status");
-  const selectedAssigneeIds = watch("assignedToIds");
+  const serviceAssignments = watch("serviceAssignments");
   const shouldShowApprovalFields = selectedStatus === "approved";
   const shouldShowRejectionReason = selectedStatus === "rejected";
   const areDatesOptional = selectedStatus === "draft" || selectedStatus === "assigned";
@@ -160,7 +185,12 @@ export const ProjectFormPage = () => {
       return;
     }
 
-    if (!canManage) {
+    if (!canView) {
+      setIsLoading(false);
+      return;
+    }
+
+    if (!isEditing && !canManage) {
       setIsLoading(false);
       return;
     }
@@ -169,13 +199,17 @@ export const ProjectFormPage = () => {
       setIsLoading(true);
 
       try {
-        const [customerResults, userResults, projectResult] = await Promise.all([
+        const [customerResults, projectManagerResults, serviceResults, userResults, projectResult] = await Promise.all([
           fetchCustomersRequest({ status: "active" }),
+          fetchProjectManagersRequest(),
+          fetchServicesRequest({ search: "", status: "active" }),
           fetchAssignableUsersRequest(),
           isEditing && projectId ? fetchProjectRequest(projectId) : Promise.resolve(null)
         ]);
 
         setCustomers(customerResults);
+        setProjectManagers(projectManagerResults);
+        setServices(serviceResults);
         setAssignableUsers(userResults);
         setProject(projectResult);
 
@@ -190,34 +224,98 @@ export const ProjectFormPage = () => {
         setIsLoading(false);
       }
     })();
-  }, [canManage, isEditing, projectId, reset, user]);
+  }, [canManage, canView, isEditing, projectId, reset, user]);
 
   const pageTitle = useMemo(() => {
-    if (isEditing) {
-      return project ? `Edit ${project.title}` : "Edit project";
+    if (!isEditing) {
+      return "Create project";
     }
 
-    return "Create project";
-  }, [isEditing, project]);
+    return canManage
+      ? project ? `Edit ${project.title}` : "Edit project"
+      : project ? `View ${project.title}` : "View project";
+  }, [canManage, isEditing, project]);
 
-  if (!canManage) {
+  if (user?.role === "team_member") {
+    return <Navigate to="/customers" replace />;
+  }
+
+  if (!canView) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!isEditing && !canManage) {
     return <Navigate to="/projects" replace />;
   }
 
-  const toggleAssignee = (userId: string) => {
-    if (selectedAssigneeIds.includes(userId)) {
-      setValue(
-        "assignedToIds",
-        selectedAssigneeIds.filter((value) => value !== userId),
-        { shouldValidate: true, shouldDirty: true }
-      );
-      return;
-    }
+  const addServiceAssignment = () => {
+    const firstAvailableService = services.find(
+      (service) => !serviceAssignments.some((serviceAssignment) => serviceAssignment.serviceId === service.id)
+    );
 
-    setValue("assignedToIds", [...selectedAssigneeIds, userId], {
-      shouldValidate: true,
-      shouldDirty: true
-    });
+    setValue(
+      "serviceAssignments",
+      [
+        ...serviceAssignments,
+        {
+          serviceId: firstAvailableService?.id ?? "",
+          hourlyRate: firstAvailableService?.defaultHourlyRate ?? 0,
+          assignedToIds: []
+        }
+      ],
+      {
+        shouldValidate: true,
+        shouldDirty: true
+      }
+    );
+  };
+
+  const removeServiceAssignment = (index: number) => {
+    setValue(
+      "serviceAssignments",
+      serviceAssignments.filter((_, currentIndex) => currentIndex !== index),
+      {
+        shouldValidate: true,
+        shouldDirty: true
+      }
+    );
+  };
+
+  const updateServiceAssignment = (
+    index: number,
+    updater: (serviceAssignment: ProjectServiceAssignmentPayload) => ProjectServiceAssignmentPayload
+  ) => {
+    setValue(
+      "serviceAssignments",
+      serviceAssignments.map((serviceAssignment, currentIndex) =>
+        currentIndex === index ? updater(serviceAssignment) : serviceAssignment
+      ),
+      {
+        shouldValidate: true,
+        shouldDirty: true
+      }
+    );
+  };
+
+  const handleServiceSelection = (index: number, serviceId: string) => {
+    const service = services.find((currentService) => currentService.id === serviceId);
+
+    updateServiceAssignment(index, (serviceAssignment) => ({
+      ...serviceAssignment,
+      serviceId,
+      hourlyRate: service?.defaultHourlyRate ?? serviceAssignment.hourlyRate
+    }));
+  };
+
+  const toggleServiceAssignee = (index: number, userId: string) => {
+    const currentAssignedToIds = serviceAssignments[index]?.assignedToIds ?? [];
+
+    updateServiceAssignment(index, (serviceAssignment) => ({
+      ...serviceAssignment,
+      assignedToIds: currentAssignedToIds.includes(userId)
+        ? currentAssignedToIds.filter((value) => value !== userId)
+        : [...currentAssignedToIds, userId]
+    }));
   };
 
   const handleSave = async (values: ProjectFormValues) => {
@@ -225,9 +323,14 @@ export const ProjectFormPage = () => {
 
     const payload: ProjectPayload = {
       customerId: values.customerId,
+      projectManagerId: values.projectManagerId,
       title: values.title,
       description: values.description,
-      assignedToIds: values.assignedToIds,
+      serviceAssignments: values.serviceAssignments.map((serviceAssignment) => ({
+        serviceId: serviceAssignment.serviceId,
+        hourlyRate: serviceAssignment.hourlyRate,
+        assignedToIds: serviceAssignment.assignedToIds
+      })),
       status: values.status,
       startDate: values.startDate || null,
       dueDate: values.dueDate || null,
@@ -248,6 +351,10 @@ export const ProjectFormPage = () => {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleInvalidSubmit = () => {
+    notify.error("Please fix the highlighted project form errors and try again.");
   };
 
   const handleCancelProject = async () => {
@@ -280,9 +387,11 @@ export const ProjectFormPage = () => {
           <div>
             <p className="text-sm font-medium text-[#A3AED0]">Project workspace</p>
             <p className="mt-1 text-sm text-[#707EAE]">
-              {isEditing
-                ? ""
-                : "Create a new project record. The ID will be generated automatically once it is saved."}
+              {!isEditing
+                ? "Create a new project record. The ID will be generated automatically once it is saved."
+                : canManage
+                  ? "Update the selected project record."
+                  : "Review the selected project record."}
             </p>
           </div>
 
@@ -293,7 +402,7 @@ export const ProjectFormPage = () => {
             >
               Back to projects
             </Link>
-            {project ? (
+            {project && canManage ? (
               <Button
                 type="button"
                 className="bg-rose-600 shadow-[0_12px_30px_rgba(225,29,72,0.22)] hover:bg-rose-700"
@@ -313,7 +422,7 @@ export const ProjectFormPage = () => {
             Loading project details...
           </section>
         ) : (
-          <form className="space-y-5" onSubmit={handleSubmit(handleSave)}>
+          <form className="space-y-5" onSubmit={handleSubmit(handleSave, handleInvalidSubmit)}>
             <section className="grid gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)]">
               <div className="space-y-5">
                 <div className="rounded-[1.75rem] bg-white p-5 shadow-[0_20px_60px_rgba(11,20,55,0.08)] sm:p-6">
@@ -324,7 +433,7 @@ export const ProjectFormPage = () => {
                       readOnly
                       disabled
                     />
-                    <Select label="Customer" error={errors.customerId?.message} {...register("customerId")}>
+                    <Select label="Customer" error={errors.customerId?.message} disabled={isReadOnly} {...register("customerId")}>
                       <option value="">Select a customer</option>
                       {customers.map((customer) => (
                         <option key={customer.id} value={customer.id}>
@@ -332,13 +441,27 @@ export const ProjectFormPage = () => {
                         </option>
                       ))}
                     </Select>
-                    <Input label="Title" error={errors.title?.message} {...register("title")} />
+                    <Select
+                      label="Project manager"
+                      error={errors.projectManagerId?.message}
+                      disabled={isReadOnly}
+                      {...register("projectManagerId")}
+                    >
+                      <option value="">Select a project manager</option>
+                      {projectManagers.map((projectManager) => (
+                        <option key={projectManager.id} value={projectManager.id}>
+                          {projectManager.name}
+                        </option>
+                      ))}
+                    </Select>
+                    <Input label="Title" error={errors.title?.message} disabled={isReadOnly} {...register("title")} />
                     <Textarea
                       label="Description"
                       error={errors.description?.message}
+                      disabled={isReadOnly}
                       {...register("description")}
                     />
-                    <Select label="Status" error={errors.status?.message} {...register("status")}>
+                    <Select label="Status" error={errors.status?.message} disabled={isReadOnly} {...register("status")}>
                       {projectStatusOptions.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
@@ -349,12 +472,14 @@ export const ProjectFormPage = () => {
                       label={areDatesOptional ? "Start date (optional)" : "Start date"}
                       type="date"
                       error={errors.startDate?.message}
+                      disabled={isReadOnly}
                       {...register("startDate")}
                     />
                     <Input
                       label={areDatesOptional ? "Due date (optional)" : "Due date"}
                       type="date"
                       error={errors.dueDate?.message}
+                      disabled={isReadOnly}
                       {...register("dueDate")}
                     />
                     {shouldShowApprovalFields ? (
@@ -382,6 +507,7 @@ export const ProjectFormPage = () => {
                         label="Rejection reason"
                         error={errors.rejectionReason?.message}
                         placeholder="Required when the status is Rejected"
+                        disabled={isReadOnly}
                         {...register("rejectionReason")}
                       />
                     ) : null}
@@ -391,43 +517,140 @@ export const ProjectFormPage = () => {
                 <div className="rounded-[1.75rem] bg-white p-5 shadow-[0_20px_60px_rgba(11,20,55,0.08)] sm:p-6">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-sm font-medium text-[#A3AED0]">Assigned team members</p>
-                      <h2 className="mt-1 text-xl font-bold text-[#2B3674]">Assigned to</h2>
+                      <p className="text-sm font-medium text-[#A3AED0]">Project services</p>
+                      <h2 className="mt-1 text-xl font-bold text-[#2B3674]">Assigned services</h2>
                     </div>
                     <div className="rounded-full bg-[#F4F7FE] px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#4318FF]">
-                      {selectedAssigneeIds.length} selected
+                      {serviceAssignments.length} selected
                     </div>
                   </div>
 
-                        {assignableUsers.length === 0 ? (
+                  {!isReadOnly ? (
+                    <button
+                      type="button"
+                      className="mt-5 inline-flex h-11 items-center justify-center rounded-full bg-[#4318FF] px-5 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(67,24,255,0.22)] transition hover:bg-[#3311cc] disabled:cursor-not-allowed disabled:bg-[#C4B5FD]"
+                      onClick={addServiceAssignment}
+                      disabled={services.length === 0 || serviceAssignments.length >= services.length}
+                    >
+                      Add service
+                    </button>
+                  ) : null}
+
+                  {serviceAssignments.length === 0 ? (
                     <div className="mt-5 rounded-2xl bg-[#F8FAFF] px-4 py-6 text-sm text-[#707EAE]">
-                      No team members are available yet. Add or seed team members before assigning work.
+                      No services added yet.
                     </div>
                   ) : (
-                    <div className="mt-5 grid gap-3 md:grid-cols-2">
-                      {assignableUsers.map((member) => {
-                        const isSelected = selectedAssigneeIds.includes(member.id);
+                    <div className="mt-5 space-y-4">
+                      {serviceAssignments.map((serviceAssignment, index) => {
+                        const currentAssignedToIds = serviceAssignment.assignedToIds;
 
                         return (
-                          <label
-                            key={member.id}
-                            className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-4 transition ${
-                              isSelected
-                                ? "border-[#4318FF] bg-[#F4F7FE]"
-                                : "border-[#E9EDF7] bg-[#FDFDFF] hover:border-[#C4B5FD]"
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              className="mt-1 h-4 w-4 accent-[#4318FF]"
-                              checked={isSelected}
-                              onChange={() => toggleAssignee(member.id)}
-                            />
-                            <div className="min-w-0">
-                              <div className="text-sm font-semibold text-[#2B3674]">{member.name}</div>
-                              <div className="mt-1 break-all text-xs text-[#707EAE]">{member.email}</div>
+                          <div key={`${serviceAssignment.serviceId || "new"}-${index}`} className="rounded-[1.5rem] border border-[#E9EDF7] bg-[#F8FAFF] p-4">
+                            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_180px]">
+                              <Select
+                                label="Service"
+                                value={serviceAssignment.serviceId}
+                                error={errors.serviceAssignments?.[index]?.serviceId?.message}
+                                disabled={isReadOnly}
+                                onChange={(event) => handleServiceSelection(index, event.target.value)}
+                              >
+                                <option value="">Select a service</option>
+                                {services.map((service) => {
+                                  const isUsedByAnotherEntry = serviceAssignments.some(
+                                    (currentServiceAssignment, currentIndex) =>
+                                      currentIndex !== index && currentServiceAssignment.serviceId === service.id
+                                  );
+
+                                  return (
+                                    <option key={service.id} value={service.id} disabled={isUsedByAnotherEntry}>
+                                      {service.name}
+                                    </option>
+                                  );
+                                })}
+                              </Select>
+
+                              <Input
+                                label="Rate per hour"
+                                type="number"
+                                min="0.01"
+                                step="0.01"
+                                value={serviceAssignment.hourlyRate}
+                                error={errors.serviceAssignments?.[index]?.hourlyRate?.message}
+                                disabled={isReadOnly}
+                                onChange={(event) =>
+                                  updateServiceAssignment(index, (currentServiceAssignment) => ({
+                                    ...currentServiceAssignment,
+                                    hourlyRate: Number(event.target.value)
+                                  }))
+                                }
+                              />
                             </div>
-                          </label>
+
+                            <div className="mt-4 flex items-center justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-semibold text-[#2B3674]">Assigned users</p>
+                                <p className="mt-1 text-xs text-[#707EAE]">
+                                  Assign one or more team members or managers to this service.
+                                </p>
+                              </div>
+                            </div>
+
+                            {errors.serviceAssignments?.[index]?.assignedToIds?.message ? (
+                              <p className="mt-3 text-xs font-medium text-rose-600">
+                                {errors.serviceAssignments[index]?.assignedToIds?.message}
+                              </p>
+                            ) : null}
+
+                            {assignableUsers.length === 0 ? (
+                              <div className="mt-4 rounded-2xl bg-white px-4 py-6 text-sm text-[#707EAE]">
+                                No team members or managers are available yet.
+                              </div>
+                            ) : (
+                              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                                {assignableUsers.map((member) => {
+                                  const isSelected = currentAssignedToIds.includes(member.id);
+
+                                  return (
+                                    <label
+                                      key={`${serviceAssignment.serviceId}-${member.id}`}
+                                      className={`flex items-start gap-3 rounded-2xl border px-4 py-4 transition ${
+                                        isSelected
+                                          ? "border-[#4318FF] bg-[#EEF2FF]"
+                                          : `border-[#E9EDF7] ${isReadOnly ? "bg-slate-100" : "bg-white hover:border-[#C4B5FD]"}`
+                                      } ${isReadOnly ? "" : "cursor-pointer"}`}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        className={`mt-1 h-4 w-4 accent-[#4318FF] ${isReadOnly ? "" : "cursor-pointer"}`}
+                                        checked={isSelected}
+                                        disabled={isReadOnly}
+                                        onChange={() => toggleServiceAssignee(index, member.id)}
+                                      />
+                                      <div className="min-w-0">
+                                        <div className="text-sm font-semibold text-[#2B3674]">{member.name}</div>
+                                        <div className="mt-1 break-all text-xs text-[#707EAE]">
+                                          {member.email} • {member.role === "team_member" ? "Team member" : "Manager"}
+                                        </div>
+                                      </div>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            {!isReadOnly ? (
+                              <div className="mt-4 flex justify-end">
+                                <button
+                                  type="button"
+                                  className="text-sm font-semibold text-rose-600 transition hover:text-rose-700"
+                                  onClick={() => removeServiceAssignment(index)}
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            ) : null}
+                          </div>
                         );
                       })}
                     </div>
@@ -463,14 +686,16 @@ export const ProjectFormPage = () => {
                 <div className="rounded-[1.75rem] bg-white p-5 shadow-[0_20px_60px_rgba(11,20,55,0.08)] sm:p-6">
                   <p className="text-sm font-medium text-[#A3AED0]">Actions</p>
                   <div className="mt-5 space-y-3">
-                    <Button type="submit" className="w-full" disabled={isSaving}>
-                      {isSaving ? "Saving..." : isEditing ? "Update project" : "Create project"}
-                    </Button>
+                    {canManage ? (
+                      <Button type="submit" className="w-full" disabled={isSaving}>
+                        {isSaving ? "Saving..." : isEditing ? "Update project" : "Create project"}
+                      </Button>
+                    ) : null}
                     <Link
                       to="/projects"
                       className="inline-flex h-11 w-full items-center justify-center rounded-full bg-[#F4F7FE] px-5 text-sm font-semibold text-[#4318FF] transition hover:bg-[#E8EEFF]"
                     >
-                      Discard changes
+                      {canManage ? "Discard changes" : "Back to projects"}
                     </Link>
                   </div>
                 </div>
@@ -480,27 +705,29 @@ export const ProjectFormPage = () => {
         )}
       </section>
 
-      <ConfirmationModal
-        isOpen={isCancelConfirmOpen}
-        title="Cancel project?"
-        description={
-          project
-            ? `Are you sure you want to cancel ${project.title}? This will move the project to Cancelled and keep its history visible.`
-            : ""
-        }
-        confirmLabel="Cancel project"
-        tone="danger"
-        isConfirming={isSaving}
-        onCancel={() => {
-          if (!isSaving) {
-            setIsCancelConfirmOpen(false);
+      {canManage ? (
+        <ConfirmationModal
+          isOpen={isCancelConfirmOpen}
+          title="Cancel project?"
+          description={
+            project
+              ? `Are you sure you want to cancel ${project.title}? This will move the project to Cancelled and keep its history visible.`
+              : ""
           }
-        }}
-        onConfirm={async () => {
-          await handleCancelProject();
-          setIsCancelConfirmOpen(false);
-        }}
-      />
+          confirmLabel="Cancel project"
+          tone="danger"
+          isConfirming={isSaving}
+          onCancel={() => {
+            if (!isSaving) {
+              setIsCancelConfirmOpen(false);
+            }
+          }}
+          onConfirm={async () => {
+            await handleCancelProject();
+            setIsCancelConfirmOpen(false);
+          }}
+        />
+      ) : null}
     </AppShell>
   );
 };

@@ -47,5 +47,30 @@ export const userListQuerySchema = z.object({
   role: z.enum(["admin", "manager", "team_member"]).optional()
 });
 
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Current password is required"),
+    newPassword: z.string().trim().min(8, "New password must be at least 8 characters long").max(255),
+    confirmNewPassword: z.string().min(1, "Retype new password is required")
+  })
+  .superRefine((value, context) => {
+    if (value.newPassword !== value.confirmNewPassword) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "New password and retyped password must match",
+        path: ["confirmNewPassword"]
+      });
+    }
+
+    if (value.currentPassword === value.newPassword) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "New password must be different from the current password",
+        path: ["newPassword"]
+      });
+    }
+  });
+
 export type UserPayload = z.infer<typeof userPayloadSchema>;
 export type UserListQuery = z.infer<typeof userListQuerySchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;

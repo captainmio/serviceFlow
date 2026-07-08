@@ -6,10 +6,12 @@ import {
   JoinTable,
   ManyToMany,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn
 } from "typeorm";
 import { Customer } from "./customer.entity.js";
+import { JobService } from "./job-service.entity.js";
 import { jobStatuses } from "./job-status.js";
 import { User } from "./user.entity.js";
 
@@ -54,6 +56,16 @@ export class Job {
     }
   })
   assignedTo!: User[];
+
+  @OneToMany(() => JobService, (jobService) => jobService.job, {
+    cascade: true,
+    orphanedRowAction: "delete"
+  })
+  serviceAssignments!: JobService[];
+
+  @ManyToOne(() => User, (user) => user.managedJobs, { nullable: true })
+  @JoinColumn({ name: "project_manager_id" })
+  projectManager!: User | null;
 
   @ManyToOne(() => User, (user) => user.approvedJobs, { nullable: true })
   @JoinColumn({ name: "approved_by" })

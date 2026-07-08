@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { ProjectTable } from "../components/features/projects/project-table";
 import { AppShell } from "../components/features/layout/app-shell";
 import { ConfirmationModal } from "../components/features/shared/confirmation-modal";
@@ -39,10 +39,11 @@ export const ProjectsPage = () => {
   const [isCancelling, setIsCancelling] = useState(false);
   const debouncedSearch = useDebouncedValue(search, 350);
 
-  const canManage = user?.role === "admin" || user?.role === "manager";
+  const canView = user?.role === "admin" || user?.role === "manager";
+  const canManage = user?.role === "admin";
 
   const loadProjects = async (options?: { preserveTable?: boolean }) => {
-    if (!user) {
+    if (!canView) {
       return;
     }
 
@@ -68,7 +69,7 @@ export const ProjectsPage = () => {
   };
 
   useEffect(() => {
-    if (!user) {
+    if (!canView) {
       return;
     }
 
@@ -84,14 +85,22 @@ export const ProjectsPage = () => {
         notify.error(error instanceof Error ? error.message : "Unable to fetch customers");
       }
     })();
-  }, [user]);
+  }, [canView]);
 
   useEffect(() => {
     void loadProjects({
       preserveTable:
         projects.length > 0 || debouncedSearch.length > 0 || statusFilter !== "all" || customerFilter !== "all"
     });
-  }, [user, debouncedSearch, statusFilter, customerFilter]);
+  }, [canView, debouncedSearch, statusFilter, customerFilter]);
+
+  if (user?.role === "team_member") {
+    return <Navigate to="/customers" replace />;
+  }
+
+  if (!canView) {
+    return <Navigate to="/login" replace />;
+  }
 
   const handleCancel = async () => {
     if (!pendingCancelProject) {
@@ -186,24 +195,26 @@ export const ProjectsPage = () => {
         </div>
       </section>
 
-      <ConfirmationModal
-        isOpen={pendingCancelProject !== null}
-        title="Cancel project?"
-        description={
-          pendingCancelProject
-            ? `Cancel ${pendingCancelProject.title}? This will move the project to Cancelled and keep its history visible.`
-            : ""
-        }
-        confirmLabel="Cancel project"
-        isConfirming={isCancelling}
-        tone="danger"
-        onCancel={() => {
-          if (!isCancelling) {
-            setPendingCancelProject(null);
+      {canManage ? (
+        <ConfirmationModal
+          isOpen={pendingCancelProject !== null}
+          title="Cancel project?"
+          description={
+            pendingCancelProject
+              ? `Cancel ${pendingCancelProject.title}? This will move the project to Cancelled and keep its history visible.`
+              : ""
           }
-        }}
-        onConfirm={handleCancel}
-      />
+          confirmLabel="Cancel project"
+          isConfirming={isCancelling}
+          tone="danger"
+          onCancel={() => {
+            if (!isCancelling) {
+              setPendingCancelProject(null);
+            }
+          }}
+          onConfirm={handleCancel}
+        />
+      ) : null}
     </AppShell>
   );
 };

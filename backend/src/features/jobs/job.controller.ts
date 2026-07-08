@@ -2,6 +2,7 @@ import type { Response } from "express";
 import { ZodError } from "zod";
 import type { AuthenticatedRequest } from "../auth/auth.middleware.js";
 import {
+  JobAccessError,
   JobAlreadyExistsError,
   cancelJob,
   createJob,
@@ -45,13 +46,23 @@ const handleJobError = (error: unknown, response: Response) => {
     return true;
   }
 
+  if (error instanceof JobAccessError) {
+    response.status(403).json({ message: error.message });
+    return true;
+  }
+
   return false;
 };
 
 export const listJobsHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
+    if (!request.authUser) {
+      response.status(401).json({ message: "Authentication is required" });
+      return;
+    }
+
     const query = jobListQuerySchema.parse(request.query);
-    const jobs = await listJobs(query);
+    const jobs = await listJobs(query, request.authUser);
     response.status(200).json(jobs);
   } catch (error: unknown) {
     if (error instanceof ZodError) {
@@ -68,7 +79,12 @@ export const listJobsHandler = async (request: AuthenticatedRequest, response: R
 
 export const getJobHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
-    const job = await getJobById(readRouteParam(request.params.jobId));
+    if (!request.authUser) {
+      response.status(401).json({ message: "Authentication is required" });
+      return;
+    }
+
+    const job = await getJobById(readRouteParam(request.params.jobId), request.authUser);
     response.status(200).json(job);
   } catch (error: unknown) {
     if (handleJobError(error, response)) {

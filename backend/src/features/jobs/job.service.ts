@@ -2,6 +2,8 @@ import { ILike } from "typeorm";
 import { appDataSource } from "../../database/data-source.js";
 import { Customer } from "../../entities/customer.entity.js";
 import { Job } from "../../entities/job.entity.js";
+import { JobService } from "../../entities/job-service.entity.js";
+import { Service } from "../../entities/service.entity.js";
 import { User } from "../../entities/user.entity.js";
 import type { AuthenticatedUser } from "../auth/auth.types.js";
 import type { JobListQuery, JobPayload } from "./job.schemas.js";
@@ -10,6 +12,7 @@ import type { JobResponse } from "./job.types.js";
 export class JobDependencyError extends Error {}
 export class JobNotFoundError extends Error {}
 export class JobAlreadyExistsError extends Error {}
+export class JobAccessError extends Error {}
 
 const toJobAssignment = (user: User) => ({
   id: user.uuid,
@@ -18,13 +21,37 @@ const toJobAssignment = (user: User) => ({
   role: user.role
 });
 
+const dedupeUsers = (users: User[]) => {
+  const seenUserIds = new Set<string>();
+
+  return users.filter((user) => {
+    if (seenUserIds.has(user.uuid)) {
+      return false;
+    }
+
+    seenUserIds.add(user.uuid);
+    return true;
+  });
+};
+
+const toJobServiceAssignment = (jobService: JobService) => ({
+  id: jobService.id,
+  serviceId: jobService.service.id,
+  serviceName: jobService.service.name,
+  hourlyRate: jobService.hourlyRate,
+  assignedTo: jobService.assignees.map(toJobAssignment)
+});
+
 const toJobResponse = (job: Job): JobResponse => ({
   id: job.id,
   title: job.title,
   description: job.description,
   customerId: job.customer.id,
   customerName: job.customer.companyName,
-  assignedTo: job.assignedTo.map(toJobAssignment),
+  projectManagerId: job.projectManager?.uuid ?? "",
+  projectManager: job.projectManager ? toJobAssignment(job.projectManager) : null,
+  assignedTo: dedupeUsers(job.serviceAssignments.flatMap((jobService) => jobService.assignees)).map(toJobAssignment),
+  serviceAssignments: job.serviceAssignments.map(toJobServiceAssignment),
   status: job.status,
   startDate: job.startDate,
   dueDate: job.dueDate,
@@ -35,24 +62,90 @@ const toJobResponse = (job: Job): JobResponse => ({
   updatedAt: job.updatedAt.toISOString()
 });
 
-const findAssignees = async (assignedToIds: string[]) => {
-  if (assignedToIds.length === 0) {
-    return [];
-  }
-
+const findAssignableUsersByIds = async (assignedToIds: string[]) => {
   const userRepository = appDataSource.getRepository(User);
+  const uniqueAssignedToIds = Array.from(new Set(assignedToIds));
+
   const assignees = await userRepository.find({
-    where: assignedToIds.map((id) => ({
+    where: uniqueAssignedToIds.map((id) => ({
       uuid: id,
-      role: "team_member"
+      active: true,
+      isLoginBlocked: false
     }))
   });
 
-  if (assignees.length !== assignedToIds.length) {
-    throw new JobDependencyError("Select valid team members for this job");
+  const validAssignees = assignees.filter(
+    (user) => user.role === "team_member" || user.role === "manager"
+  );
+
+  if (validAssignees.length !== uniqueAssignedToIds.length) {
+    throw new JobDependencyError("Select valid team members or managers for this project service");
   }
 
-  return assignees;
+  return validAssignees;
+};
+
+const buildJobServiceAssignments = async (payload: JobPayload) => {
+  const serviceRepository = appDataSource.getRepository(Service);
+  const jobServiceRepository = appDataSource.getRepository(JobService);
+  const serviceIds = Array.from(new Set(payload.serviceAssignments.map((assignment) => assignment.serviceId)));
+  const allAssignedUserIds = payload.serviceAssignments.flatMap((assignment) => assignment.assignedToIds);
+
+  const [services, assignableUsers] = await Promise.all([
+    serviceRepository.find({
+      where: serviceIds.map((id) => ({ id }))
+    }),
+    findAssignableUsersByIds(allAssignedUserIds)
+  ]);
+
+  if (services.length !== serviceIds.length) {
+    throw new JobDependencyError("Select valid services for this project");
+  }
+
+  const servicesById = new Map(services.map((service) => [service.id, service]));
+  const usersById = new Map(assignableUsers.map((user) => [user.uuid, user]));
+
+  return payload.serviceAssignments.map((serviceAssignment) => {
+    const service = servicesById.get(serviceAssignment.serviceId);
+
+    if (!service) {
+      throw new JobDependencyError("Select valid services for this project");
+    }
+
+    const assignees = serviceAssignment.assignedToIds.map((assignedToId) => {
+      const user = usersById.get(assignedToId);
+
+      if (!user) {
+        throw new JobDependencyError("Select valid team members or managers for this project service");
+      }
+
+      return user;
+    });
+
+    return jobServiceRepository.create({
+      service,
+      hourlyRate: serviceAssignment.hourlyRate,
+      assignees
+    });
+  });
+};
+
+const findProjectManager = async (projectManagerId: string) => {
+  const userRepository = appDataSource.getRepository(User);
+  const projectManager = await userRepository.findOne({
+    where: {
+      uuid: projectManagerId,
+      role: "manager",
+      active: true,
+      isLoginBlocked: false
+    }
+  });
+
+  if (!projectManager) {
+    throw new JobDependencyError("Select a valid active project manager");
+  }
+
+  return projectManager;
 };
 
 const ensureJobTitleIsUnique = async (
@@ -91,6 +184,11 @@ const loadJobOrThrow = async (jobId: string) => {
     where: { id: jobId },
     relations: {
       customer: true,
+      serviceAssignments: {
+        service: true,
+        assignees: true
+      },
+      projectManager: true,
       assignedTo: true,
       approvedBy: true
     }
@@ -101,6 +199,16 @@ const loadJobOrThrow = async (jobId: string) => {
   }
 
   return job;
+};
+
+const ensureJobAccess = (job: Job, authUser: AuthenticatedUser) => {
+  if (authUser.role !== "manager") {
+    return;
+  }
+
+  if (!job.projectManager || job.projectManager.uuid !== authUser.id) {
+    throw new JobAccessError("You do not have access to this project");
+  }
 };
 
 const applyApprovalState = async (
@@ -127,7 +235,10 @@ const applyApprovalState = async (
     payload.status === "rejected" ? payload.rejectionReason?.trim() ?? null : null;
 };
 
-export const listJobs = async ({ search, status, customerId }: JobListQuery): Promise<JobResponse[]> => {
+export const listJobs = async (
+  { search, status, customerId }: JobListQuery,
+  authUser: AuthenticatedUser
+): Promise<JobResponse[]> => {
   const jobRepository = appDataSource.getRepository(Job);
 
   const whereClause = search
@@ -154,6 +265,11 @@ export const listJobs = async ({ search, status, customerId }: JobListQuery): Pr
     where: whereClause,
     relations: {
       customer: true,
+      serviceAssignments: {
+        service: true,
+        assignees: true
+      },
+      projectManager: true,
       assignedTo: true,
       approvedBy: true
     },
@@ -163,11 +279,17 @@ export const listJobs = async ({ search, status, customerId }: JobListQuery): Pr
     }
   });
 
-  return jobs.map(toJobResponse);
+  const visibleJobs =
+    authUser.role === "manager"
+      ? jobs.filter((job) => job.projectManager?.uuid === authUser.id)
+      : jobs;
+
+  return visibleJobs.map(toJobResponse);
 };
 
-export const getJobById = async (jobId: string): Promise<JobResponse> => {
+export const getJobById = async (jobId: string, authUser: AuthenticatedUser): Promise<JobResponse> => {
   const job = await loadJobOrThrow(jobId);
+  ensureJobAccess(job, authUser);
   return toJobResponse(job);
 };
 
@@ -178,9 +300,10 @@ export const createJob = async (
   const customerRepository = appDataSource.getRepository(Customer);
   const jobRepository = appDataSource.getRepository(Job);
 
-  const [customer, assignees] = await Promise.all([
+  const [customer, serviceAssignments, projectManager] = await Promise.all([
     customerRepository.findOne({ where: { id: payload.customerId } }),
-    findAssignees(payload.assignedToIds)
+    buildJobServiceAssignments(payload),
+    findProjectManager(payload.projectManagerId)
   ]);
 
   if (!customer || customer.status !== "active") {
@@ -193,7 +316,9 @@ export const createJob = async (
     title: payload.title.trim(),
     description: payload.description.trim(),
     customer,
-    assignedTo: assignees,
+    projectManager,
+    assignedTo: dedupeUsers(serviceAssignments.flatMap((serviceAssignment) => serviceAssignment.assignees)),
+    serviceAssignments,
     status: payload.status,
     startDate: payload.startDate,
     dueDate: payload.dueDate
@@ -206,6 +331,11 @@ export const createJob = async (
     where: { id: savedJob.id },
     relations: {
       customer: true,
+      serviceAssignments: {
+        service: true,
+        assignees: true
+      },
+      projectManager: true,
       assignedTo: true,
       approvedBy: true
     }
@@ -221,10 +351,11 @@ export const updateJob = async (
 ): Promise<JobResponse> => {
   const customerRepository = appDataSource.getRepository(Customer);
   const jobRepository = appDataSource.getRepository(Job);
-  const [job, customer, assignees] = await Promise.all([
+  const [job, customer, serviceAssignments, projectManager] = await Promise.all([
     loadJobOrThrow(jobId),
     customerRepository.findOne({ where: { id: payload.customerId } }),
-    findAssignees(payload.assignedToIds)
+    buildJobServiceAssignments(payload),
+    findProjectManager(payload.projectManagerId)
   ]);
 
   if (!customer || customer.status !== "active") {
@@ -236,7 +367,9 @@ export const updateJob = async (
   job.title = payload.title.trim();
   job.description = payload.description.trim();
   job.customer = customer;
-  job.assignedTo = assignees;
+  job.projectManager = projectManager;
+  job.assignedTo = dedupeUsers(serviceAssignments.flatMap((serviceAssignment) => serviceAssignment.assignees));
+  job.serviceAssignments = serviceAssignments;
   job.status = payload.status;
   job.startDate = payload.startDate;
   job.dueDate = payload.dueDate;
@@ -248,6 +381,11 @@ export const updateJob = async (
     where: { id: savedJob.id },
     relations: {
       customer: true,
+      serviceAssignments: {
+        service: true,
+        assignees: true
+      },
+      projectManager: true,
       assignedTo: true,
       approvedBy: true
     }
@@ -267,7 +405,12 @@ export const cancelJob = async (
       title: job.title,
       description: job.description,
       customerId: job.customer.id,
-      assignedToIds: job.assignedTo.map((user) => user.uuid),
+      projectManagerId: job.projectManager?.uuid ?? "",
+      serviceAssignments: job.serviceAssignments.map((serviceAssignment) => ({
+        serviceId: serviceAssignment.service.id,
+        hourlyRate: serviceAssignment.hourlyRate,
+        assignedToIds: serviceAssignment.assignees.map((user) => user.uuid)
+      })),
       status: "cancelled",
       startDate: job.startDate,
       dueDate: job.dueDate,

@@ -2,14 +2,16 @@ import { ZodError } from "zod";
 import type { Response } from "express";
 import type { AuthenticatedRequest } from "../auth/auth.middleware.js";
 import {
+  changeOwnPassword,
   createTeamMember,
   getTeamMemberByUuid,
+  InvalidCurrentPasswordError,
   listAssignableUsers,
   listTeamMembers,
   TeamMemberAlreadyExistsError,
   updateTeamMember
 } from "./user.service.js";
-import { userListQuerySchema, userPayloadSchema } from "./user.schemas.js";
+import { changePasswordSchema, userListQuerySchema, userPayloadSchema } from "./user.schemas.js";
 
 const readRouteParam = (value: string | string[] | undefined) => {
   if (typeof value === "string") {
@@ -30,6 +32,11 @@ const handleUserError = (error: unknown, response: Response) => {
 
   if (error instanceof TeamMemberAlreadyExistsError) {
     response.status(409).json({ message: error.message });
+    return true;
+  }
+
+  if (error instanceof InvalidCurrentPasswordError) {
+    response.status(400).json({ message: error.message });
     return true;
   }
 
@@ -129,5 +136,27 @@ export const updateTeamMemberHandler = async (
     }
 
     response.status(500).json({ message: "Unable to update team member right now" });
+  }
+};
+
+export const changeOwnPasswordHandler = async (
+  request: AuthenticatedRequest,
+  response: Response
+) => {
+  try {
+    if (!request.authUser) {
+      response.status(401).json({ message: "Authentication is required" });
+      return;
+    }
+
+    const payload = changePasswordSchema.parse(request.body);
+    await changeOwnPassword(request.authUser.id, payload.currentPassword, payload.newPassword);
+    response.status(204).send();
+  } catch (error: unknown) {
+    if (handleUserError(error, response)) {
+      return;
+    }
+
+    response.status(500).json({ message: "Unable to change password right now" });
   }
 };

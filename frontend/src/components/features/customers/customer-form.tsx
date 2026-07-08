@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { notify } from "../../../lib/notify";
 import type { Customer, CustomerPayload } from "../../../types/customer";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
@@ -105,6 +106,10 @@ export const CustomerForm = ({
     onClose();
   };
 
+  const handleInvalidSubmit = () => {
+    notify.error("Please fix the highlighted customer form errors and try again.");
+  };
+
   if (!isMounted) {
     return null;
   }
@@ -150,7 +155,7 @@ export const CustomerForm = ({
               if (wasSuccessful && !initialCustomer) {
                 reset(defaultValues);
               }
-            })}
+            }, handleInvalidSubmit)}
           >
             <div className="grid gap-4 md:grid-cols-2">
               <Input label="Company name" error={errors.companyName?.message} {...register("companyName")} />

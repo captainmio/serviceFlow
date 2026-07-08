@@ -9,12 +9,19 @@ const optionalDateField = z.preprocess(
     .nullable()
 );
 
+const jobServiceAssignmentSchema = z.object({
+  serviceId: z.string().uuid("Select a valid service"),
+  hourlyRate: z.coerce.number().positive("Hourly rate must be greater than zero"),
+  assignedToIds: z.array(z.string().uuid("Select a valid assignee")).min(1, "Assign at least one user to each service")
+});
+
 export const jobPayloadSchema = z
   .object({
     title: z.string().trim().min(1, "Job title is required").max(160),
     description: z.string().trim().max(2000).default(""),
     customerId: z.string().uuid("Select a valid customer"),
-    assignedToIds: z.array(z.string().uuid("Select a valid assignee")).default([]),
+    projectManagerId: z.string().uuid("Select a valid project manager"),
+    serviceAssignments: z.array(jobServiceAssignmentSchema).min(1, "Add at least one service to the project"),
     status: z.enum(jobStatuses),
     startDate: optionalDateField,
     dueDate: optionalDateField,
@@ -28,14 +35,6 @@ export const jobPayloadSchema = z
         code: z.ZodIssueCode.custom,
         message: "Start date is required for this status",
         path: ["startDate"]
-      });
-    }
-
-    if (requiresDates && !value.dueDate) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Due date is required for this status",
-        path: ["dueDate"]
       });
     }
 
@@ -54,6 +53,20 @@ export const jobPayloadSchema = z
         path: ["rejectionReason"]
       });
     }
+
+    const seenServiceIds = new Set<string>();
+
+    value.serviceAssignments.forEach((serviceAssignment, index) => {
+      if (seenServiceIds.has(serviceAssignment.serviceId)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Each service can only be added once per project",
+          path: ["serviceAssignments", index, "serviceId"]
+        });
+      }
+
+      seenServiceIds.add(serviceAssignment.serviceId);
+    });
   });
 
 export const jobListQuerySchema = z.object({

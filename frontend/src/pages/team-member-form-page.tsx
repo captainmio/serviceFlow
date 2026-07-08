@@ -208,6 +208,10 @@ export const TeamMemberFormPage = () => {
     }
   };
 
+  const handleInvalidSubmit = () => {
+    notify.error("Please fix the highlighted team member form errors and try again.");
+  };
+
   return (
     <AppShell
       eyebrow={isEditing ? "Pages / Team Members / Edit" : "Pages / Team Members / Create"}
@@ -240,7 +244,7 @@ export const TeamMemberFormPage = () => {
             Loading team member details...
           </section>
         ) : (
-          <form className="space-y-5" onSubmit={handleSubmit(handleSave)}>
+          <form className="space-y-5" onSubmit={handleSubmit(handleSave, handleInvalidSubmit)}>
             <section className="grid gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)]">
               <div className="space-y-5">
                 <div className="rounded-[1.75rem] bg-white p-5 shadow-[0_20px_60px_rgba(11,20,55,0.08)] sm:p-6">

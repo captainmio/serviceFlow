@@ -9,6 +9,7 @@ import {
   UpdateDateColumn
 } from "typeorm";
 import { Job } from "./job.entity.js";
+import { JobService } from "./job-service.entity.js";
 import { userRoles } from "./user-role.js";
 
 @Entity({ name: "users" })
@@ -65,6 +66,12 @@ export class User {
 
   @ManyToMany(() => Job, (job) => job.assignedTo)
   assignedJobs!: Job[];
+
+  @ManyToMany(() => JobService, (jobService) => jobService.assignees)
+  assignedJobServices!: JobService[];
+
+  @OneToMany(() => Job, (job) => job.projectManager)
+  managedJobs!: Job[];
 
   @OneToMany(() => Job, (job) => job.approvedBy)
   approvedJobs!: Job[];

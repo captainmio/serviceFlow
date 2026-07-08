@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { notify } from "../../../lib/notify";
 import type { Service, ServicePayload } from "../../../types/service";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
@@ -100,6 +101,10 @@ export const ServiceForm = ({
     onClose();
   };
 
+  const handleInvalidSubmit = () => {
+    notify.error("Please fix the highlighted service form errors and try again.");
+  };
+
   if (!isMounted) {
     return null;
   }
@@ -137,7 +142,7 @@ export const ServiceForm = ({
             className="mt-6 flex min-h-0 flex-1 flex-col"
             onSubmit={handleSubmit(async (values) => {
               await onSubmit(values);
-            })}
+            }, handleInvalidSubmit)}
           >
             <div className="grid gap-4">
               <Input label="Service name" error={errors.name?.message} {...register("name")} />

@@ -1,4 +1,4 @@
-import { hash } from "bcrypt";
+import { compare, hash } from "bcrypt";
 import { ILike } from "typeorm";
 import { appDataSource } from "../../database/data-source.js";
 import { Invoice } from "../../entities/invoice.entity.js";
@@ -34,6 +34,7 @@ const toTeamMemberResponse = (user: User): TeamMemberResponse => ({
 });
 
 export class TeamMemberAlreadyExistsError extends Error {}
+export class InvalidCurrentPasswordError extends Error {}
 
 const normalizeName = (firstName: string, lastName: string) =>
   `${firstName.trim().toLowerCase()}::${lastName.trim().toLowerCase()}`;
@@ -121,11 +122,18 @@ export const listTeamMembers = async ({
 export const listAssignableUsers = async (): Promise<UserOptionResponse[]> => {
   const userRepository = appDataSource.getRepository(User);
   const users = await userRepository.find({
-    where: {
-      role: "team_member",
-      active: true,
-      isLoginBlocked: false
-    },
+    where: [
+      {
+        role: "team_member",
+        active: true,
+        isLoginBlocked: false
+      },
+      {
+        role: "manager",
+        active: true,
+        isLoginBlocked: false
+      }
+    ],
     order: {
       firstName: "ASC",
       lastName: "ASC"
@@ -197,4 +205,26 @@ export const findPendingInvoicesForUser = async (userUuid: string): Promise<numb
   }
 
   return invoiceRepository.count();
+};
+
+export const changeOwnPassword = async (
+  userUuid: string,
+  currentPassword: string,
+  newPassword: string
+): Promise<void> => {
+  const userRepository = appDataSource.getRepository(User);
+  const user = await userRepository.findOne({ where: { uuid: userUuid } });
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  const isCurrentPasswordValid = await compare(currentPassword, user.passwordHash);
+
+  if (!isCurrentPasswordValid) {
+    throw new InvalidCurrentPasswordError("Current password is incorrect");
+  }
+
+  user.passwordHash = await hash(newPassword.trim(), 10);
+  await userRepository.save(user);
 };

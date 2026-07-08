@@ -8,13 +8,24 @@ export interface JobAssignmentResponse {
   role: UserRole;
 }
 
+export interface JobServiceAssignmentResponse {
+  id: string;
+  serviceId: string;
+  serviceName: string;
+  hourlyRate: number;
+  assignedTo: JobAssignmentResponse[];
+}
+
 export interface JobResponse {
   id: string;
   title: string;
   description: string;
   customerId: string;
   customerName: string;
+  projectManagerId: string | null;
+  projectManager: JobAssignmentResponse | null;
   assignedTo: JobAssignmentResponse[];
+  serviceAssignments: JobServiceAssignmentResponse[];
   status: JobStatus;
   startDate: string | null;
   dueDate: string | null;
