@@ -115,7 +115,7 @@ export const ServicesPage = () => {
     <AdminShell
       eyebrow="Pages / Services"
       title="Service catalog"
-      description="Manage the company service list, default billing rates, and start jobs directly from a selected service."
+      description="list of services the company offers"
     >
       <section className="space-y-5">
         <div className="flex flex-col gap-4 rounded-[1.75rem] bg-white p-4 shadow-[0_20px_60px_rgba(11,20,55,0.08)] sm:p-6 md:flex-row md:items-end md:justify-between">

@@ -77,13 +77,19 @@ export const CustomerTable = ({
                   >
                     Edit
                   </button>
-                  <button
-                    type="button"
-                    className="inline-flex h-11 items-center justify-center rounded-full bg-white text-sm font-semibold text-rose-600"
-                    onClick={() => onDelete(customer)}
-                  >
-                    Delete
-                  </button>
+                  {customer.hasJobs ? (
+                    <div className="flex h-11 items-center justify-center rounded-full bg-white px-3 text-center text-xs font-semibold text-[#707EAE]">
+                      Set inactive instead
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="inline-flex h-11 items-center justify-center rounded-full bg-white text-sm font-semibold text-rose-600"
+                      onClick={() => onDelete(customer)}
+                    >
+                      Delete
+                    </button>
+                  )}
                 </div>
               ) : null}
             </article>
@@ -144,13 +150,17 @@ export const CustomerTable = ({
                         >
                           Edit
                         </button>
-                        <button
-                          type="button"
-                          className="text-rose-600"
-                          onClick={() => onDelete(customer)}
-                        >
-                          Delete
-                        </button>
+                        {customer.hasJobs ? (
+                          <span className="text-[#707EAE]">Set inactive instead</span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="text-rose-600"
+                            onClick={() => onDelete(customer)}
+                          >
+                            Delete
+                          </button>
+                        )}
                       </div>
                     </td>
                   ) : null}

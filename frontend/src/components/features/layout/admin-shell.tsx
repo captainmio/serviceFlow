@@ -10,8 +10,9 @@ interface NavigationItem {
 }
 
 const extendedNavigationItems: NavigationItem[] = [
-  { label: "Customer", to: "/customers" },
-  { label: "Services", to: "/services" }
+  { label: "Customers", to: "/customers" },
+  { label: "Services", to: "/services" },
+  { label: "Projects", to: "/projects" }
 ];
 
 interface AdminShellProps {

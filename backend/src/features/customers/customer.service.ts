@@ -20,6 +20,7 @@ const toCustomerResponse = (customer: Customer): CustomerResponse => ({
   phone: customer.phone,
   address: customer.address,
   status: customer.status,
+  hasJobs: Array.isArray(customer.jobs) ? customer.jobs.length > 0 : false,
   createdAt: customer.createdAt.toISOString(),
   updatedAt: customer.updatedAt.toISOString()
 });
@@ -43,6 +44,9 @@ export const listCustomers = async ({
 
   const customers = await customerRepository.find({
     where: whereClause,
+    relations: {
+      jobs: true
+    },
     order: {
       companyName: "ASC"
     }
@@ -64,7 +68,10 @@ export const createCustomer = async (payload: CustomerPayload): Promise<Customer
   });
 
   const savedCustomer = await customerRepository.save(customer);
-  return toCustomerResponse(savedCustomer);
+  return toCustomerResponse({
+    ...savedCustomer,
+    jobs: []
+  });
 };
 
 export const updateCustomer = async (
@@ -86,7 +93,10 @@ export const updateCustomer = async (
   customer.status = payload.status;
 
   const savedCustomer = await customerRepository.save(customer);
-  return toCustomerResponse(savedCustomer);
+  return toCustomerResponse({
+    ...savedCustomer,
+    jobs: customer.jobs ?? []
+  });
 };
 
 export const deleteCustomer = async (customerId: string): Promise<boolean> => {

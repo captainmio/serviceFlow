@@ -2,9 +2,12 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  ManyToMany,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn
 } from "typeorm";
+import { Job } from "./job.entity.js";
 import { userRoles } from "./user-role.js";
 
 @Entity({ name: "users" })
@@ -27,6 +30,12 @@ export class User {
     default: "team_member"
   })
   role!: (typeof userRoles)[number];
+
+  @ManyToMany(() => Job, (job) => job.assignedTo)
+  assignedJobs!: Job[];
+
+  @OneToMany(() => Job, (job) => job.approvedBy)
+  approvedJobs!: Job[];
 
   @CreateDateColumn({ name: "created_at" })
   createdAt!: Date;

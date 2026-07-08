@@ -8,6 +8,7 @@ export interface CustomerResponse {
   phone: string;
   address: string;
   status: CustomerStatus;
+  hasJobs: boolean;
   createdAt: string;
   updatedAt: string;
 }

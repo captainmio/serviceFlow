@@ -13,7 +13,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         <span>{label}</span>
         <textarea
           ref={ref}
-          className={`min-h-32 rounded-2xl border border-[#E9EDF7] bg-[#FDFDFF] px-4 py-3 text-sm text-[#1B2559] outline-none ring-0 transition placeholder:text-[#A3AED0] focus:border-[#4318FF] focus:bg-white ${className}`}
+          className={`min-h-32 rounded-2xl border border-[#E9EDF7] bg-[#FDFDFF] px-4 py-3 text-sm text-[#1B2559] outline-none ring-0 transition placeholder:text-[#A3AED0] focus:border-[#4318FF] focus:bg-white disabled:border-[#D8DEEE] disabled:bg-[#EEF2F7] disabled:text-[#7B86A8] disabled:placeholder:text-[#AAB4CF] ${className}`}
           {...props}
         />
         {error ? <span className="text-xs font-medium text-rose-600">{error}</span> : null}

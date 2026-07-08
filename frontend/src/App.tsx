@@ -1,5 +1,7 @@
 import { useEffect } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useParams } from "react-router-dom";
+import { ProjectFormPage } from "./pages/project-form-page";
+import { ProjectsPage } from "./pages/projects-page";
 import { CustomersPage } from "./pages/customers-page";
 import { LoginPage } from "./pages/login-page";
 import { NotFoundPage } from "./pages/not-found-page";
@@ -19,6 +21,11 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
   }
 
   return children;
+};
+
+const LegacyProjectEditRedirect = () => {
+  const { jobId } = useParams();
+  return <Navigate to={jobId ? `/projects/${jobId}/edit` : "/projects"} replace />;
 };
 
 export const App = () => {
@@ -45,6 +52,33 @@ export const App = () => {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<Navigate to="/customers" replace />} />
+      <Route path="/jobs" element={<Navigate to="/projects" replace />} />
+      <Route path="/jobs/new" element={<Navigate to="/projects/new" replace />} />
+      <Route path="/jobs/:jobId/edit" element={<LegacyProjectEditRedirect />} />
+      <Route
+        path="/projects"
+        element={
+          <ProtectedRoute>
+            <ProjectsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/projects/new"
+        element={
+          <ProtectedRoute>
+            <ProjectFormPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/projects/:projectId/edit"
+        element={
+          <ProtectedRoute>
+            <ProjectFormPage />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/customers"
         element={
