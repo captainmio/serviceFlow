@@ -7,8 +7,8 @@ import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 
 const loginFormSchema = z.object({
-  email: z.string().trim().email("Enter a valid email"),
-  password: z.string().min(8, "Password must be at least 8 characters")
+  email: z.string().trim().min(1, "Username or email is required"),
+  password: z.string().min(4, "Password must be at least 4 characters")
 });
 
 type LoginFormValues = z.infer<typeof loginFormSchema>;
@@ -42,9 +42,9 @@ export const LoginForm = () => {
   return (
     <form className="flex flex-col gap-5" onSubmit={onSubmit}>
       <Input
-        label="Email"
-        type="email"
-        autoComplete="email"
+        label="Username or email"
+        type="text"
+        autoComplete="username"
         error={errors.email?.message}
         {...register("email")}
       />

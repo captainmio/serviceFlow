@@ -77,6 +77,13 @@ export const loginHandler = async (request: Request, response: Response) => {
       return;
     }
 
+    if (error instanceof Error && error.message === "This user is currently blocked from logging in") {
+      response.status(403).json({
+        message: error.message
+      });
+      return;
+    }
+
     response.status(500).json({
       message: "Unable to log in right now"
     });

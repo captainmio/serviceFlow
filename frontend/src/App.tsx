@@ -2,6 +2,8 @@ import { useEffect } from "react";
 import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { ProjectFormPage } from "./pages/project-form-page";
 import { ProjectsPage } from "./pages/projects-page";
+import { TeamMemberFormPage } from "./pages/team-member-form-page";
+import { TeamMembersPage } from "./pages/team-members-page";
 import { CustomersPage } from "./pages/customers-page";
 import { LoginPage } from "./pages/login-page";
 import { NotFoundPage } from "./pages/not-found-page";
@@ -76,6 +78,30 @@ export const App = () => {
         element={
           <ProtectedRoute>
             <ProjectFormPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/team-members"
+        element={
+          <ProtectedRoute>
+            <TeamMembersPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/team-members/new"
+        element={
+          <ProtectedRoute>
+            <TeamMemberFormPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/team-members/:userUuid/edit"
+        element={
+          <ProtectedRoute>
+            <TeamMemberFormPage />
           </ProtectedRoute>
         }
       />

@@ -12,7 +12,7 @@ export const ACCESS_TOKEN_MAX_AGE_MS = 15 * 60 * 1000;
 export const REFRESH_TOKEN_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 const buildAuthenticatedUser = (user: User): AuthenticatedUser => ({
-  id: user.id,
+  id: user.uuid,
   name: user.name,
   email: user.email,
   role: user.role
@@ -29,7 +29,7 @@ const buildAuthResponse = (user: User): AuthResponse => {
 
 export const buildAuthTokens = (user: User) => {
   const basePayload = {
-    sub: user.id,
+    sub: user.uuid,
     name: user.name,
     email: user.email,
     role: user.role
@@ -60,6 +60,10 @@ export const login = async ({ email, password }: LoginInput): Promise<User> => {
     throw new Error("Invalid email or password");
   }
 
+  if (!user.active || user.isLoginBlocked) {
+    throw new Error("This user is currently blocked from logging in");
+  }
+
   const isPasswordValid = await compare(password, user.passwordHash);
 
   if (!isPasswordValid) {
@@ -77,6 +81,6 @@ export const findUserById = async (userId: string): Promise<User | null> => {
   const userRepository = appDataSource.getRepository(User);
 
   return userRepository.findOne({
-    where: { id: userId }
+    where: { uuid: userId }
   });
 };

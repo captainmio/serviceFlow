@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { AdminShell } from "../components/features/layout/admin-shell";
+import { Navigate } from "react-router-dom";
+import { AppShell } from "../components/features/layout/app-shell";
 import { ConfirmationModal } from "../components/features/shared/confirmation-modal";
 import { ServiceForm } from "../components/features/services/service-form";
 import { ServiceTableLoading } from "../components/features/services/service-table-loading";
@@ -31,7 +32,11 @@ export const ServicesPage = () => {
   const [isDeactivating, setIsDeactivating] = useState(false);
   const debouncedSearch = useDebouncedValue(search, 350);
 
-  const canManage = user?.role === "admin" || user?.role === "manager";
+  const canManage = user?.role === "admin";
+
+  if (user?.role !== "admin") {
+    return <Navigate to="/projects" replace />;
+  }
 
   const loadServices = async (options?: { preserveTable?: boolean }) => {
     if (!user) {
@@ -112,22 +117,24 @@ export const ServicesPage = () => {
   };
 
   return (
-    <AdminShell
+    <AppShell
       eyebrow="Pages / Services"
       title="Service catalog"
       description="list of services the company offers"
     >
       <section className="space-y-5">
-        <div className="flex flex-col gap-4 rounded-[1.75rem] bg-white p-4 shadow-[0_20px_60px_rgba(11,20,55,0.08)] sm:p-6 md:flex-row md:items-end md:justify-between">
-          <div className="grid flex-1 gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
+        <div className="flex flex-col gap-3 rounded-[1.75rem] bg-white p-3 shadow-[0_20px_60px_rgba(11,20,55,0.08)] sm:p-4 lg:flex-row lg:items-end">
+          <div className="grid flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
             <Input
               label="Search services"
               placeholder="Search by name or description"
+              className="h-10"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
             <Select
               label="Status filter"
+              className="h-10"
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value as ServiceStatus | "all")}
             >
@@ -139,7 +146,7 @@ export const ServicesPage = () => {
 
           {canManage ? (
             <button
-              className="inline-flex h-11 w-full items-center justify-center rounded-full bg-[#4318FF] px-5 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(67,24,255,0.22)] transition hover:bg-[#3311cc] md:w-auto"
+              className="inline-flex h-10 w-full shrink-0 items-center justify-center rounded-full bg-[#4318FF] px-5 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(67,24,255,0.22)] transition hover:bg-[#3311cc] lg:w-auto"
               type="button"
               onClick={() => {
                 setEditingService(null);
@@ -151,11 +158,11 @@ export const ServicesPage = () => {
           ) : null}
         </div>
 
-        <section className="rounded-[1.75rem] bg-white p-4 shadow-[0_20px_60px_rgba(11,20,55,0.08)] sm:p-6">
+        <section className="rounded-[1.75rem] bg-white p-4 shadow-[0_20px_60px_rgba(11,20,55,0.08)] sm:p-6 lg:max-h-[calc(100vh-16rem)] lg:overflow-hidden">
           {isInitialLoading ? (
             <ServiceTableLoading />
           ) : (
-            <div className="relative">
+            <div className="relative lg:h-full lg:overflow-auto">
               {isFiltering ? (
                 <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[1.75rem] bg-white/70 backdrop-blur-[2px]">
                   <div className="flex items-center gap-3 rounded-full bg-white px-4 py-3 text-sm font-semibold text-[#4318FF] shadow-[0_12px_30px_rgba(11,20,55,0.08)]">
@@ -209,6 +216,6 @@ export const ServicesPage = () => {
           />
         </>
       ) : null}
-    </AdminShell>
+    </AppShell>
   );
 };

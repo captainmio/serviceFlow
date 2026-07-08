@@ -12,7 +12,7 @@ export class JobNotFoundError extends Error {}
 export class JobAlreadyExistsError extends Error {}
 
 const toJobAssignment = (user: User) => ({
-  id: user.id,
+  id: user.uuid,
   name: user.name,
   email: user.email,
   role: user.role
@@ -43,7 +43,7 @@ const findAssignees = async (assignedToIds: string[]) => {
   const userRepository = appDataSource.getRepository(User);
   const assignees = await userRepository.find({
     where: assignedToIds.map((id) => ({
-      id,
+      uuid: id,
       role: "team_member"
     }))
   });
@@ -110,7 +110,7 @@ const applyApprovalState = async (
 ) => {
   if (payload.status === "approved" || payload.status === "rejected") {
     const userRepository = appDataSource.getRepository(User);
-    const actingUser = await userRepository.findOne({ where: { id: authUser.id } });
+    const actingUser = await userRepository.findOne({ where: { uuid: authUser.id } });
 
     if (!actingUser) {
       throw new JobDependencyError("Unable to identify the acting user for approval");
@@ -267,7 +267,7 @@ export const cancelJob = async (
       title: job.title,
       description: job.description,
       customerId: job.customer.id,
-      assignedToIds: job.assignedTo.map((user) => user.id),
+      assignedToIds: job.assignedTo.map((user) => user.uuid),
       status: "cancelled",
       startDate: job.startDate,
       dueDate: job.dueDate,

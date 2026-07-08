@@ -11,11 +11,20 @@ test("login schema accepts a valid email and password", () => {
   assert.equal(parsed.email, "admin@serviceflow.local");
 });
 
-test("login schema rejects invalid email payloads", () => {
+test("login schema accepts username-style login values", () => {
+  const parsed = loginSchema.parse({
+    email: "admin",
+    password: "admin"
+  });
+
+  assert.equal(parsed.email, "admin");
+});
+
+test("login schema rejects empty username or email payloads", () => {
   assert.throws(() =>
     loginSchema.parse({
-      email: "not-an-email",
-      password: "ChangeMe123!"
+      email: "   ",
+      password: "admin"
     })
   );
 });

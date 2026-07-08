@@ -50,7 +50,7 @@ export class Job {
     },
     inverseJoinColumn: {
       name: "user_id",
-      referencedColumnName: "id"
+      referencedColumnName: "uuid"
     }
   })
   assignedTo!: User[];

@@ -15,10 +15,12 @@
 * **UI components:** Reuse frontend UI primitives such as buttons, inputs, cards, and layout wrappers throughout the app. Create a new component if changing an existing one would make it too specific.
 * **Notifications:** Use a single global notification system for user-facing success, error, and informational feedback. In this project, use `react-toastify` instead of ad hoc inline alerts for mutation results.
 * **Form state preservation:** Do not clear or reset user-entered values in inputs, textareas, selects, or other low-level UI controls when a submission fails. Preserve the entered data so the user can correct and resubmit.
+* **Form layout default:** Default new create/edit forms to full-width stacked fields. Use multi-column field layouts only when there is a clear usability reason.
 * **Destructive actions:** Confirm delete and other destructive actions with a modal before executing them. Reuse a shared confirmation-modal pattern for future delete flows.
 * **Styling:** Use Tailwind utility classes; avoid custom CSS unless strictly necessary.
 * **Functions:** Prefer arrow functions and functional programming principles where practical.
 * **Security:** Never hardcode API URLs. Read them from `.env` variables.
+* **Database changes:** Use TypeORM migrations for schema changes. Do not rely on seed scripts or `synchronize` to introduce or patch schema updates.
 
 ## 2.1 Frontend Layout Direction
 * **Design inspiration:** Use the Horizon-style admin layout approach as inspiration for composition only: light workspace, left sidebar, top content header, rounded white cards, roomy table sections, and soft shadows. Do not copy brand assets or exact page structures.

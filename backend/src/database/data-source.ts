@@ -6,6 +6,8 @@ import { Invoice } from "../entities/invoice.entity.js";
 import { Job } from "../entities/job.entity.js";
 import { Service } from "../entities/service.entity.js";
 import { User } from "../entities/user.entity.js";
+import { AddUserMasterData1720569600000 } from "./migrations/1720569600000-add-user-master-data.js";
+import { SeedAdminUser1720573200000 } from "./migrations/1720573200000-seed-admin-user.js";
 
 export const appDataSource = new DataSource({
   type: "mysql",
@@ -14,7 +16,8 @@ export const appDataSource = new DataSource({
   username: env.DB_USER,
   password: env.DB_PASSWORD,
   database: env.DB_NAME,
-  synchronize: env.DB_SYNCHRONIZE,
+  synchronize: false,
   logging: false,
-  entities: [User, Customer, Job, Invoice, Service]
+  entities: [User, Customer, Job, Invoice, Service],
+  migrations: [AddUserMasterData1720569600000, SeedAdminUser1720573200000]
 });

@@ -7,25 +7,30 @@ import { Button } from "../../ui/button";
 interface NavigationItem {
   label: string;
   to: string;
+  roles?: Array<"admin" | "manager">;
 }
 
 const extendedNavigationItems: NavigationItem[] = [
   { label: "Customers", to: "/customers" },
-  { label: "Services", to: "/services" },
-  { label: "Projects", to: "/projects" }
+  { label: "Services", to: "/services", roles: ["admin"] },
+  { label: "Projects", to: "/projects" },
+  { label: "Team Members", to: "/team-members", roles: ["admin", "manager"] }
 ];
 
-interface AdminShellProps {
+interface AppShellProps {
   title: string;
   eyebrow: string;
   description: string;
   children: ReactNode;
 }
 
-export const AdminShell = ({ title, eyebrow, description, children }: AdminShellProps) => {
+export const AppShell = ({ title, eyebrow, description, children }: AppShellProps) => {
   const user = useAuthStore((state) => state.user);
   const setAnonymous = useAuthStore((state) => state.setAnonymous);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const visibleNavigationItems = extendedNavigationItems.filter(
+    (item) => !item.roles || (user ? item.roles.includes(user.role as "admin" | "manager") : false)
+  );
 
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);
@@ -40,7 +45,7 @@ export const AdminShell = ({ title, eyebrow, description, children }: AdminShell
   };
 
   return (
-    <main className="min-h-screen bg-[linear-gradient(180deg,#F4F7FE_0%,#EEF2FF_100%)] px-4 py-4 text-[#1B2559] sm:px-6">
+    <main className="min-h-screen bg-[linear-gradient(180deg,#F4F7FE_0%,#EEF2FF_100%)] px-4 py-4 text-[#1B2559] sm:px-6 lg:h-screen lg:overflow-hidden">
       <div className="mx-auto flex max-w-[1440px] items-center justify-between rounded-[1.75rem] bg-white px-4 py-4 shadow-[0_20px_60px_rgba(11,20,55,0.08)] lg:hidden">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#4318FF] text-base font-bold text-white">
@@ -81,7 +86,7 @@ export const AdminShell = ({ title, eyebrow, description, children }: AdminShell
             </div>
 
             <div className="mt-5 space-y-2">
-              {extendedNavigationItems.map((item) => (
+              {visibleNavigationItems.map((item) => (
                 <NavLink
                   key={item.label}
                   to={item.to}
@@ -113,8 +118,8 @@ export const AdminShell = ({ title, eyebrow, description, children }: AdminShell
         </div>
       ) : null}
 
-      <div className="mx-auto mt-4 grid min-h-[calc(100vh-2rem)] max-w-[1440px] gap-5 lg:mt-0 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="hidden flex-col rounded-[2rem] bg-white px-6 py-7 shadow-[0_20px_60px_rgba(11,20,55,0.08)] lg:flex">
+      <div className="mx-auto mt-4 grid min-h-[calc(100vh-2rem)] max-w-[1440px] gap-5 lg:mt-0 lg:h-[calc(100vh-2rem)] lg:grid-cols-[280px_minmax(0,1fr)] lg:overflow-hidden">
+        <aside className="hidden min-h-0 flex-col rounded-[2rem] bg-white px-6 py-7 shadow-[0_20px_60px_rgba(11,20,55,0.08)] lg:flex">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#4318FF] text-lg font-bold text-white">
               S
@@ -126,7 +131,7 @@ export const AdminShell = ({ title, eyebrow, description, children }: AdminShell
           </div>
 
           <nav className="mt-10 flex flex-col gap-2">
-            {extendedNavigationItems.map((item) => (
+            {visibleNavigationItems.map((item) => (
               <NavLink
                 key={item.label}
                 to={item.to}
@@ -162,7 +167,7 @@ export const AdminShell = ({ title, eyebrow, description, children }: AdminShell
           </div>
         </aside>
 
-        <section className="flex min-w-0 flex-col gap-5">
+        <section className="flex min-w-0 min-h-0 flex-col gap-5 overflow-hidden">
           <header className="flex flex-col gap-3 rounded-[2rem] px-2 py-1 sm:px-4 md:flex-row md:items-center md:justify-between lg:px-6 lg:pt-2">
             <div>
               <p className="text-sm font-medium text-[#A3AED0]">{eyebrow}</p>
@@ -171,7 +176,9 @@ export const AdminShell = ({ title, eyebrow, description, children }: AdminShell
             </div>
           </header>
 
-          {children}
+          <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-1">
+            {children}
+          </div>
         </section>
       </div>
     </main>

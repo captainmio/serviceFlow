@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
-import { AdminShell } from "../components/features/layout/admin-shell";
+import { AppShell } from "../components/features/layout/app-shell";
 import { ConfirmationModal } from "../components/features/shared/confirmation-modal";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -270,7 +270,7 @@ export const ProjectFormPage = () => {
   };
 
   return (
-    <AdminShell
+    <AppShell
       eyebrow={isEditing ? "Pages / Projects / Edit" : "Pages / Projects / Create"}
       title={pageTitle}
       description=""
@@ -501,6 +501,6 @@ export const ProjectFormPage = () => {
           setIsCancelConfirmOpen(false);
         }}
       />
-    </AdminShell>
+    </AppShell>
   );
 };

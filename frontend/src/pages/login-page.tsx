@@ -39,9 +39,6 @@ export const LoginPage = () => {
           <div className="mt-auto rounded-[1.75rem] bg-[linear-gradient(180deg,#7551FF_0%,#4318FF_100%)] p-5 text-white">
             <p className="text-xs font-semibold uppercase tracking-[0.25em] text-white/70">Initial access</p>
             <h2 className="mt-3 text-2xl font-bold">Seeded admin account</h2>
-            <p className="mt-2 text-sm text-white/80">
-              Use the admin credentials from your backend environment to sign in and verify the stack.
-            </p>
           </div>
         </aside>
 
@@ -78,9 +75,6 @@ export const LoginPage = () => {
             <div className="mb-6 space-y-2">
               <p className="text-sm font-medium text-[#A3AED0]">Welcome back</p>
               <h2 className="text-3xl font-bold tracking-tight text-[#2B3674]">Sign in</h2>
-              <p className="text-sm leading-6 text-[#707EAE]">
-                Use the seeded admin account to enter the customer workspace and continue building the platform.
-              </p>
             </div>
             <LoginForm />
           </section>

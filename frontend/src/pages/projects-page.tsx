@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ProjectTable } from "../components/features/projects/project-table";
-import { AdminShell } from "../components/features/layout/admin-shell";
+import { AppShell } from "../components/features/layout/app-shell";
 import { ConfirmationModal } from "../components/features/shared/confirmation-modal";
 import { Input } from "../components/ui/input";
 import { Select } from "../components/ui/select";
@@ -113,14 +113,14 @@ export const ProjectsPage = () => {
   };
 
   return (
-    <AdminShell
+    <AppShell
       eyebrow="Pages / Projects"
       title="Project management"
       description=""
     >
       <section className="space-y-5">
-        <div className="flex flex-col gap-4 rounded-[1.75rem] bg-white p-4 shadow-[0_20px_60px_rgba(11,20,55,0.08)] sm:p-6">
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px_260px]">
+        <div className="flex flex-col gap-4 rounded-[1.75rem] bg-white p-4 shadow-[0_20px_60px_rgba(11,20,55,0.08)] sm:p-6 lg:flex-row lg:items-end">
+          <div className="grid flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_220px_260px]">
             <Input
               label="Search projects"
               placeholder="Search by title or customer"
@@ -153,14 +153,12 @@ export const ProjectsPage = () => {
           </div>
 
           {canManage ? (
-            <div className="flex justify-end">
-              <Link
-                to="/projects/new"
-                className="inline-flex h-11 items-center justify-center rounded-full bg-[#4318FF] px-5 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(67,24,255,0.22)] transition hover:bg-[#3311cc]"
-              >
-                Create project
-              </Link>
-            </div>
+            <Link
+              to="/projects/new"
+              className="inline-flex h-11 w-full shrink-0 items-center justify-center rounded-full bg-[#4318FF] px-5 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(67,24,255,0.22)] transition hover:bg-[#3311cc] lg:w-auto"
+            >
+              Create project
+            </Link>
           ) : null}
         </div>
 
@@ -206,6 +204,6 @@ export const ProjectsPage = () => {
         }}
         onConfirm={handleCancel}
       />
-    </AdminShell>
+    </AppShell>
   );
 };

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AdminShell } from "../components/features/layout/admin-shell";
+import { AppShell } from "../components/features/layout/app-shell";
 import { CustomerForm } from "../components/features/customers/customer-form";
 import { CustomerTableLoading } from "../components/features/customers/customer-table-loading";
 import { CustomerTable } from "../components/features/customers/customer-table";
@@ -128,7 +128,7 @@ export const CustomersPage = () => {
   };
 
   return (
-    <AdminShell
+    <AppShell
       eyebrow="Pages / Customers"
       title="Customer"
       description=""
@@ -222,6 +222,6 @@ export const CustomersPage = () => {
         }}
         onConfirm={handleDelete}
       />
-    </AdminShell>
+    </AppShell>
   );
 };
