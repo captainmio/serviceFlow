@@ -1,7 +1,7 @@
 import type { Response } from "express";
-import { QueryFailedError } from "typeorm";
-import { ZodError } from "zod";
 import type { AuthenticatedRequest } from "../auth/auth.middleware.js";
+import { isDuplicateEntryError } from "../../shared/database/typeorm-helpers.js";
+import { readRouteParam, respondWithZodError } from "../../shared/http/controller-helpers.js";
 import {
   createCustomer,
   CustomerDeleteBlockedError,
@@ -11,20 +11,8 @@ import {
 } from "./customer.service.js";
 import { customerListQuerySchema, customerPayloadSchema } from "./customer.schemas.js";
 
-const readRouteParam = (value: string | string[] | undefined) => {
-  if (typeof value === "string") {
-    return value;
-  }
-
-  return "";
-};
-
 const handleMutationError = (error: unknown, response: Response) => {
-  if (error instanceof ZodError) {
-    response.status(400).json({
-      message: "Invalid customer payload",
-      issues: error.flatten()
-    });
+  if (respondWithZodError(response, error, "Invalid customer payload")) {
     return true;
   }
 
@@ -33,13 +21,7 @@ const handleMutationError = (error: unknown, response: Response) => {
     return true;
   }
 
-  if (
-    error instanceof QueryFailedError &&
-    typeof error.driverError === "object" &&
-    error.driverError !== null &&
-    "code" in error.driverError &&
-    error.driverError.code === "ER_DUP_ENTRY"
-  ) {
+  if (isDuplicateEntryError(error)) {
     response.status(409).json({ message: "A customer with that email already exists" });
     return true;
   }
@@ -53,11 +35,7 @@ export const listCustomersHandler = async (request: AuthenticatedRequest, respon
     const customers = await listCustomers(query);
     response.status(200).json(customers);
   } catch (error: unknown) {
-    if (error instanceof ZodError) {
-      response.status(400).json({
-        message: "Invalid customer search query",
-        issues: error.flatten()
-      });
+    if (respondWithZodError(response, error, "Invalid customer search query")) {
       return;
     }
 

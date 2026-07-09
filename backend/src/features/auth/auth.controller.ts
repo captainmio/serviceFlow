@@ -2,6 +2,8 @@ import type { Request, Response } from "express";
 import type { CookieOptions } from "express";
 import { ZodError } from "zod";
 import { env } from "../../config/env.js";
+import { readCookieValue } from "../../shared/http/cookie-helpers.js";
+import { requireAuthenticatedUser, respondWithZodError } from "../../shared/http/controller-helpers.js";
 import { loginSchema } from "./auth.schema.js";
 import {
   ACCESS_TOKEN_COOKIE_NAME,
@@ -15,25 +17,6 @@ import {
   verifyToken
 } from "./auth.service.js";
 import type { AuthenticatedRequest } from "./auth.middleware.js";
-
-const readCookie = (request: Request, cookieName: string) => {
-  const cookieHeader = request.headers.cookie;
-
-  if (!cookieHeader) {
-    return null;
-  }
-
-  const cookie = cookieHeader
-    .split(";")
-    .map((entry) => entry.trim())
-    .find((entry) => entry.startsWith(`${cookieName}=`));
-
-  if (!cookie) {
-    return null;
-  }
-
-  return decodeURIComponent(cookie.slice(cookieName.length + 1));
-};
 
 const buildCookieOptions = (maxAge: number): CookieOptions => ({
   httpOnly: true,
@@ -62,11 +45,7 @@ export const loginHandler = async (request: Request, response: Response) => {
     writeAuthCookies(response, accessToken, refreshToken);
     response.status(200).json(buildSessionResponse(user));
   } catch (error: unknown) {
-    if (error instanceof ZodError) {
-      response.status(400).json({
-        message: "Invalid login payload",
-        issues: error.flatten()
-      });
+    if (respondWithZodError(response, error, "Invalid login payload")) {
       return;
     }
 
@@ -91,19 +70,20 @@ export const loginHandler = async (request: Request, response: Response) => {
 };
 
 export const sessionHandler = async (request: AuthenticatedRequest, response: Response) => {
-  if (!request.authUser) {
-    response.status(401).json({ message: "Authentication is required" });
+  const authUser = requireAuthenticatedUser(request, response);
+
+  if (!authUser) {
     return;
   }
 
   response.status(200).json({
-    user: request.authUser
+    user: authUser
   });
 };
 
 export const refreshHandler = async (request: Request, response: Response) => {
   try {
-    const refreshToken = readCookie(request, REFRESH_TOKEN_COOKIE_NAME);
+    const refreshToken = readCookieValue(request, REFRESH_TOKEN_COOKIE_NAME);
 
     if (!refreshToken) {
       response.status(401).json({ message: "Authentication is required" });

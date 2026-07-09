@@ -2,6 +2,11 @@ import type { Response } from "express";
 import { ZodError } from "zod";
 import type { AuthenticatedRequest } from "../auth/auth.middleware.js";
 import {
+  readRouteParam,
+  requireAuthenticatedUser,
+  respondWithZodError
+} from "../../shared/http/controller-helpers.js";
+import {
   JobAccessError,
   JobAlreadyExistsError,
   cancelJob,
@@ -14,20 +19,8 @@ import {
 } from "./job.service.js";
 import { jobListQuerySchema, jobPayloadSchema } from "./job.schemas.js";
 
-const readRouteParam = (value: string | string[] | undefined) => {
-  if (typeof value === "string") {
-    return value;
-  }
-
-  return "";
-};
-
 const handleJobError = (error: unknown, response: Response) => {
-  if (error instanceof ZodError) {
-    response.status(400).json({
-      message: "Invalid job payload",
-      issues: error.flatten()
-    });
+  if (respondWithZodError(response, error, "Invalid job payload")) {
     return true;
   }
 
@@ -56,20 +49,17 @@ const handleJobError = (error: unknown, response: Response) => {
 
 export const listJobsHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
-    if (!request.authUser) {
-      response.status(401).json({ message: "Authentication is required" });
+    const authUser = requireAuthenticatedUser(request, response);
+
+    if (!authUser) {
       return;
     }
 
     const query = jobListQuerySchema.parse(request.query);
-    const jobs = await listJobs(query, request.authUser);
+    const jobs = await listJobs(query, authUser);
     response.status(200).json(jobs);
   } catch (error: unknown) {
-    if (error instanceof ZodError) {
-      response.status(400).json({
-        message: "Invalid job search query",
-        issues: error.flatten()
-      });
+    if (respondWithZodError(response, error, "Invalid job search query")) {
       return;
     }
 
@@ -79,12 +69,13 @@ export const listJobsHandler = async (request: AuthenticatedRequest, response: R
 
 export const getJobHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
-    if (!request.authUser) {
-      response.status(401).json({ message: "Authentication is required" });
+    const authUser = requireAuthenticatedUser(request, response);
+
+    if (!authUser) {
       return;
     }
 
-    const job = await getJobById(readRouteParam(request.params.jobId), request.authUser);
+    const job = await getJobById(readRouteParam(request.params.jobId), authUser);
     response.status(200).json(job);
   } catch (error: unknown) {
     if (handleJobError(error, response)) {
@@ -98,12 +89,13 @@ export const getJobHandler = async (request: AuthenticatedRequest, response: Res
 export const createJobHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
     const payload = jobPayloadSchema.parse(request.body);
-    if (!request.authUser) {
-      response.status(401).json({ message: "Authentication is required" });
+    const authUser = requireAuthenticatedUser(request, response);
+
+    if (!authUser) {
       return;
     }
 
-    const job = await createJob(payload, request.authUser);
+    const job = await createJob(payload, authUser);
     response.status(201).json(job);
   } catch (error: unknown) {
     if (handleJobError(error, response)) {
@@ -117,13 +109,13 @@ export const createJobHandler = async (request: AuthenticatedRequest, response: 
 export const updateJobHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
     const payload = jobPayloadSchema.parse(request.body);
+    const authUser = requireAuthenticatedUser(request, response);
 
-    if (!request.authUser) {
-      response.status(401).json({ message: "Authentication is required" });
+    if (!authUser) {
       return;
     }
 
-    const job = await updateJob(readRouteParam(request.params.jobId), payload, request.authUser);
+    const job = await updateJob(readRouteParam(request.params.jobId), payload, authUser);
     response.status(200).json(job);
   } catch (error: unknown) {
     if (handleJobError(error, response)) {
@@ -136,12 +128,13 @@ export const updateJobHandler = async (request: AuthenticatedRequest, response: 
 
 export const cancelJobHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
-    if (!request.authUser) {
-      response.status(401).json({ message: "Authentication is required" });
+    const authUser = requireAuthenticatedUser(request, response);
+
+    if (!authUser) {
       return;
     }
 
-    const job = await cancelJob(readRouteParam(request.params.jobId), request.authUser);
+    const job = await cancelJob(readRouteParam(request.params.jobId), authUser);
     response.status(200).json(job);
   } catch (error: unknown) {
     if (handleJobError(error, response)) {

@@ -1,7 +1,7 @@
 import type { Response } from "express";
-import { QueryFailedError } from "typeorm";
-import { ZodError } from "zod";
 import type { AuthenticatedRequest } from "../auth/auth.middleware.js";
+import { isDuplicateEntryError } from "../../shared/database/typeorm-helpers.js";
+import { readRouteParam, respondWithZodError } from "../../shared/http/controller-helpers.js";
 import { serviceListQuerySchema, servicePayloadSchema } from "./service.schemas.js";
 import {
   createService,
@@ -10,30 +10,12 @@ import {
   updateService
 } from "./service.service.js";
 
-const readRouteParam = (value: string | string[] | undefined) => {
-  if (typeof value === "string") {
-    return value;
-  }
-
-  return "";
-};
-
 const handleServiceMutationError = (error: unknown, response: Response) => {
-  if (error instanceof ZodError) {
-    response.status(400).json({
-      message: "Invalid service payload",
-      issues: error.flatten()
-    });
+  if (respondWithZodError(response, error, "Invalid service payload")) {
     return true;
   }
 
-  if (
-    error instanceof QueryFailedError &&
-    typeof error.driverError === "object" &&
-    error.driverError !== null &&
-    "code" in error.driverError &&
-    error.driverError.code === "ER_DUP_ENTRY"
-  ) {
+  if (isDuplicateEntryError(error)) {
     response.status(409).json({ message: "A service with that name already exists" });
     return true;
   }
@@ -47,11 +29,7 @@ export const listServicesHandler = async (request: AuthenticatedRequest, respons
     const services = await listServices(query);
     response.status(200).json(services);
   } catch (error: unknown) {
-    if (error instanceof ZodError) {
-      response.status(400).json({
-        message: "Invalid service search query",
-        issues: error.flatten()
-      });
+    if (respondWithZodError(response, error, "Invalid service search query")) {
       return;
     }
 

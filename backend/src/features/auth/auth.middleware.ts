@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import type { UserRole } from "../../entities/user-role.js";
+import { readCookieValue } from "../../shared/http/cookie-helpers.js";
 import { ACCESS_TOKEN_COOKIE_NAME, verifyToken } from "./auth.service.js";
 
 interface AuthenticatedRequestUser {
@@ -18,17 +19,12 @@ export const requireAuth = (
   response: Response,
   next: NextFunction
 ) => {
-  const cookieHeader = request.headers.cookie;
   const authorizationHeader = request.headers.authorization;
-  const cookieToken = cookieHeader
-    ?.split(";")
-    .map((entry) => entry.trim())
-    .find((entry) => entry.startsWith(`${ACCESS_TOKEN_COOKIE_NAME}=`))
-    ?.slice(ACCESS_TOKEN_COOKIE_NAME.length + 1);
+  const cookieToken = readCookieValue(request, ACCESS_TOKEN_COOKIE_NAME);
   const headerToken = authorizationHeader?.startsWith("Bearer ")
     ? authorizationHeader.slice("Bearer ".length)
     : null;
-  const token = cookieToken ? decodeURIComponent(cookieToken) : headerToken;
+  const token = cookieToken || headerToken;
 
   if (!token) {
     response.status(401).json({ message: "Authentication is required" });

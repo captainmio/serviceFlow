@@ -2,6 +2,11 @@ import type { Response } from "express";
 import { ZodError } from "zod";
 import type { AuthenticatedRequest } from "../auth/auth.middleware.js";
 import {
+  readRouteParam,
+  requireAuthenticatedUser,
+  respondWithZodError
+} from "../../shared/http/controller-helpers.js";
+import {
   createWorkLog,
   deleteWorkLog,
   getWorkLogById,
@@ -21,14 +26,8 @@ import {
   workLogPeriodReviewSchema
 } from "./work-log.schemas.js";
 
-const readRouteParam = (value: string | string[] | undefined) => (typeof value === "string" ? value : "");
-
 const handleWorkLogError = (error: unknown, response: Response) => {
-  if (error instanceof ZodError) {
-    response.status(400).json({
-      message: "Invalid work-log payload",
-      issues: error.flatten()
-    });
+  if (respondWithZodError(response, error, "Invalid work-log payload")) {
     return true;
   }
 
@@ -55,12 +54,13 @@ export const listWorkLogOptionsHandler = async (
   response: Response
 ) => {
   try {
-    if (!request.authUser) {
-      response.status(401).json({ message: "Authentication is required" });
+    const authUser = requireAuthenticatedUser(request, response);
+
+    if (!authUser) {
       return;
     }
 
-    const options = await listWorkLogOptions(request.authUser);
+    const options = await listWorkLogOptions(authUser);
     response.status(200).json(options);
   } catch {
     response.status(500).json({ message: "Unable to fetch work-log options right now" });
@@ -69,20 +69,17 @@ export const listWorkLogOptionsHandler = async (
 
 export const listWorkLogsHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
-    if (!request.authUser) {
-      response.status(401).json({ message: "Authentication is required" });
+    const authUser = requireAuthenticatedUser(request, response);
+
+    if (!authUser) {
       return;
     }
 
     const query = workLogListQuerySchema.parse(request.query);
-    const workLogs = await listWorkLogs(query, request.authUser);
+    const workLogs = await listWorkLogs(query, authUser);
     response.status(200).json(workLogs);
   } catch (error: unknown) {
-    if (error instanceof ZodError) {
-      response.status(400).json({
-        message: "Invalid work-log query",
-        issues: error.flatten()
-      });
+    if (respondWithZodError(response, error, "Invalid work-log query")) {
       return;
     }
 
@@ -92,12 +89,13 @@ export const listWorkLogsHandler = async (request: AuthenticatedRequest, respons
 
 export const getWorkLogHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
-    if (!request.authUser) {
-      response.status(401).json({ message: "Authentication is required" });
+    const authUser = requireAuthenticatedUser(request, response);
+
+    if (!authUser) {
       return;
     }
 
-    const workLog = await getWorkLogById(readRouteParam(request.params.workLogId), request.authUser);
+    const workLog = await getWorkLogById(readRouteParam(request.params.workLogId), authUser);
     response.status(200).json(workLog);
   } catch (error: unknown) {
     if (handleWorkLogError(error, response)) {
@@ -110,13 +108,14 @@ export const getWorkLogHandler = async (request: AuthenticatedRequest, response:
 
 export const createWorkLogHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
-    if (!request.authUser) {
-      response.status(401).json({ message: "Authentication is required" });
+    const authUser = requireAuthenticatedUser(request, response);
+
+    if (!authUser) {
       return;
     }
 
     const payload = workLogPayloadSchema.parse(request.body);
-    const workLog = await createWorkLog(payload, request.authUser);
+    const workLog = await createWorkLog(payload, authUser);
     response.status(201).json(workLog);
   } catch (error: unknown) {
     if (handleWorkLogError(error, response)) {
@@ -129,17 +128,14 @@ export const createWorkLogHandler = async (request: AuthenticatedRequest, respon
 
 export const updateWorkLogHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
-    if (!request.authUser) {
-      response.status(401).json({ message: "Authentication is required" });
+    const authUser = requireAuthenticatedUser(request, response);
+
+    if (!authUser) {
       return;
     }
 
     const payload = workLogPayloadSchema.parse(request.body);
-    const workLog = await updateWorkLog(
-      readRouteParam(request.params.workLogId),
-      payload,
-      request.authUser
-    );
+    const workLog = await updateWorkLog(readRouteParam(request.params.workLogId), payload, authUser);
     response.status(200).json(workLog);
   } catch (error: unknown) {
     if (handleWorkLogError(error, response)) {
@@ -152,12 +148,13 @@ export const updateWorkLogHandler = async (request: AuthenticatedRequest, respon
 
 export const deleteWorkLogHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
-    if (!request.authUser) {
-      response.status(401).json({ message: "Authentication is required" });
+    const authUser = requireAuthenticatedUser(request, response);
+
+    if (!authUser) {
       return;
     }
 
-    await deleteWorkLog(readRouteParam(request.params.workLogId), request.authUser);
+    await deleteWorkLog(readRouteParam(request.params.workLogId), authUser);
     response.status(204).send();
   } catch (error: unknown) {
     if (handleWorkLogError(error, response)) {
@@ -173,24 +170,21 @@ export const getWorkLogPeriodHandler = async (
   response: Response
 ) => {
   try {
-    if (!request.authUser) {
-      response.status(401).json({ message: "Authentication is required" });
+    const authUser = requireAuthenticatedUser(request, response);
+
+    if (!authUser) {
       return;
     }
 
     const query = workLogPeriodQuerySchema.parse(request.query);
-    const period = await getWorkLogPeriod(query.projectId, query.monthStart, request.authUser);
+    const period = await getWorkLogPeriod(query.projectId, query.monthStart, authUser);
     response.status(200).json(period);
   } catch (error: unknown) {
     if (handleWorkLogError(error, response)) {
       return;
     }
 
-    if (error instanceof ZodError) {
-      response.status(400).json({
-        message: "Invalid work-log period query",
-        issues: error.flatten()
-      });
+    if (respondWithZodError(response, error, "Invalid work-log period query")) {
       return;
     }
 
@@ -203,13 +197,14 @@ export const reviewWorkLogPeriodHandler = async (
   response: Response
 ) => {
   try {
-    if (!request.authUser) {
-      response.status(401).json({ message: "Authentication is required" });
+    const authUser = requireAuthenticatedUser(request, response);
+
+    if (!authUser) {
       return;
     }
 
     const payload = workLogPeriodReviewSchema.parse(request.body);
-    const period = await reviewWorkLogPeriod(payload, request.authUser);
+    const period = await reviewWorkLogPeriod(payload, authUser);
     response.status(200).json(period);
   } catch (error: unknown) {
     if (handleWorkLogError(error, response)) {

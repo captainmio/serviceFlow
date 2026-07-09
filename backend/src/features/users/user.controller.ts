@@ -2,6 +2,11 @@ import { ZodError } from "zod";
 import type { Response } from "express";
 import type { AuthenticatedRequest } from "../auth/auth.middleware.js";
 import {
+  readRouteParam,
+  requireAuthenticatedUser,
+  respondWithZodError
+} from "../../shared/http/controller-helpers.js";
+import {
   changeOwnPassword,
   createTeamMember,
   getTeamMemberByUuid,
@@ -13,20 +18,8 @@ import {
 } from "./user.service.js";
 import { changePasswordSchema, userListQuerySchema, userPayloadSchema } from "./user.schemas.js";
 
-const readRouteParam = (value: string | string[] | undefined) => {
-  if (typeof value === "string") {
-    return value;
-  }
-
-  return "";
-};
-
 const handleUserError = (error: unknown, response: Response) => {
-  if (error instanceof ZodError) {
-    response.status(400).json({
-      message: "Invalid team member payload",
-      issues: error.flatten()
-    });
+  if (respondWithZodError(response, error, "Invalid team member payload")) {
     return true;
   }
 
@@ -69,11 +62,7 @@ export const listTeamMembersHandler = async (
     const users = await listTeamMembers(query);
     response.status(200).json(users);
   } catch (error: unknown) {
-    if (error instanceof ZodError) {
-      response.status(400).json({
-        message: "Invalid team member search query",
-        issues: error.flatten()
-      });
+    if (respondWithZodError(response, error, "Invalid team member search query")) {
       return;
     }
 
@@ -144,13 +133,14 @@ export const changeOwnPasswordHandler = async (
   response: Response
 ) => {
   try {
-    if (!request.authUser) {
-      response.status(401).json({ message: "Authentication is required" });
+    const authUser = requireAuthenticatedUser(request, response);
+
+    if (!authUser) {
       return;
     }
 
     const payload = changePasswordSchema.parse(request.body);
-    await changeOwnPassword(request.authUser.id, payload.currentPassword, payload.newPassword);
+    await changeOwnPassword(authUser.id, payload.currentPassword, payload.newPassword);
     response.status(204).send();
   } catch (error: unknown) {
     if (handleUserError(error, response)) {
