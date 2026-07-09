@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Navigate } from "react-router-dom";
 import { AppShell } from "../components/features/layout/app-shell";
 import { CustomerForm } from "../components/features/customers/customer-form";
 import { CustomerTableLoading } from "../components/features/customers/customer-table-loading";
@@ -32,6 +33,10 @@ export const CustomersPage = () => {
   const debouncedSearch = useDebouncedValue(search, 350);
 
   const canManage = user?.role === "admin" || user?.role === "manager";
+
+  if (user?.role === "team_member") {
+    return <Navigate to="/work-logs" replace />;
+  }
 
   const loadCustomers = async (options?: { preserveTable?: boolean }) => {
     if (!user) {

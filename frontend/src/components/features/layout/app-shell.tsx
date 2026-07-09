@@ -8,12 +8,12 @@ import { EditProfileModal } from "./edit-profile-modal";
 interface NavigationItem {
   label: string;
   to: string;
-  roles?: Array<"admin" | "manager">;
+  roles?: Array<"admin" | "manager" | "team_member">;
 }
 
 const extendedNavigationItems: NavigationItem[] = [
   { label: "Work Logs", to: "/work-logs" },
-  { label: "Customers", to: "/customers" },
+  { label: "Customers", to: "/customers", roles: ["admin", "manager"] },
   { label: "Services", to: "/services", roles: ["admin"] },
   { label: "Projects", to: "/projects", roles: ["admin", "manager"] },
   { label: "Team Members", to: "/team-members", roles: ["admin", "manager"] }
@@ -38,7 +38,7 @@ export const AppShell = ({ title, eyebrow, description, children }: AppShellProp
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const visibleNavigationItems = extendedNavigationItems.filter(
-    (item) => !item.roles || (user ? item.roles.includes(user.role as "admin" | "manager") : false)
+    (item) => !item.roles || (user ? item.roles.includes(user.role) : false)
   );
 
   const closeMobileMenu = () => {

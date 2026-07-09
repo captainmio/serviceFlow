@@ -54,7 +54,7 @@ export const App = () => {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/" element={<Navigate to="/customers" replace />} />
+      <Route path="/" element={<Navigate to="/work-logs" replace />} />
       <Route path="/jobs" element={<Navigate to="/projects" replace />} />
       <Route path="/jobs/new" element={<Navigate to="/projects/new" replace />} />
       <Route path="/jobs/:jobId/edit" element={<LegacyProjectEditRedirect />} />
