@@ -18,7 +18,7 @@ const envSchema = z.object({
     .transform((value) => value === "true"),
   JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters long"),
   JWT_EXPIRES_IN: z.string().min(1).default("15m"),
-  JWT_REFRESH_EXPIRES_IN: z.string().min(1).default("7d")
+  JWT_REFRESH_EXPIRES_IN: z.string().min(1).default("12h")
 });
 
 export const env = envSchema.parse(process.env);
