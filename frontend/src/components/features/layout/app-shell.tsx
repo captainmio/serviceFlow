@@ -127,8 +127,8 @@ export const AppShell = ({ title, eyebrow, description, children }: AppShellProp
         </div>
       ) : null}
 
-      <div className="mx-auto mt-4 grid min-h-[calc(100vh-2rem)] max-w-[1440px] gap-5 lg:mt-0 lg:h-[calc(100vh-2rem)] lg:grid-cols-[280px_minmax(0,1fr)] lg:overflow-hidden">
-        <aside className="hidden min-h-0 flex-col rounded-[2rem] bg-white px-6 py-7 shadow-[0_20px_60px_rgba(11,20,55,0.08)] lg:flex">
+      <div className="mx-auto mt-4 grid min-h-[calc(100vh-2rem)] max-w-[1440px] gap-5 lg:mt-0 lg:h-[calc(100vh-2rem)] lg:grid-cols-[272px_minmax(0,1fr)] lg:overflow-hidden">
+        <aside className="hidden min-h-0 flex-col rounded-[2rem] bg-white px-5 py-6 shadow-[0_20px_60px_rgba(11,20,55,0.08)] lg:flex">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#4318FF] text-lg font-bold text-white">
               S
@@ -139,14 +139,14 @@ export const AppShell = ({ title, eyebrow, description, children }: AppShellProp
             </div>
           </div>
 
-          <nav className="mt-10 flex flex-col gap-2">
+          <nav className="mt-8 flex flex-col gap-1.5">
             {visibleNavigationItems.map((item) => (
               <NavLink
                 key={item.label}
                 to={item.to}
                 className={({ isActive }) =>
                   [
-                    "flex items-center rounded-2xl px-4 py-3 text-sm font-semibold transition",
+                    "flex min-h-11 items-center rounded-2xl px-4 py-2.5 text-sm font-semibold transition",
                     isActive
                       ? "bg-[#F4F7FE] text-[#4318FF]"
                       : "text-[#707EAE] hover:bg-[#F8FAFF] hover:text-[#2B3674]"
@@ -158,21 +158,26 @@ export const AppShell = ({ title, eyebrow, description, children }: AppShellProp
             ))}
           </nav>
 
-          <div className="mt-auto rounded-[1.75rem] bg-[linear-gradient(180deg,#7551FF_0%,#4318FF_100%)] p-5 text-white shadow-[0_18px_40px_rgba(67,24,255,0.28)]">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/75">Current user</p>
-            <h2 className="mt-3 text-xl font-bold">{user?.name ?? "Unknown User"}</h2>
-            <p className="mt-1 text-sm text-white/80">{user?.email ?? "No email"}</p>
-            <p className="mt-4 inline-flex rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]">
-              {user ? roleLabels[user.role] : "Guest"}
-            </p>
+          <div className="mt-auto rounded-[1.5rem] bg-[linear-gradient(180deg,#7551FF_0%,#4318FF_100%)] p-4 text-white shadow-[0_18px_40px_rgba(67,24,255,0.28)]">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/70">Current user</p>
+                <h2 className="mt-2 truncate text-lg font-bold">{user?.name ?? "Unknown User"}</h2>
+                <p className="mt-1 truncate text-xs text-white/80">{user?.email ?? "No email"}</p>
+              </div>
+              <p className="shrink-0 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]">
+                {user ? roleLabels[user.role] : "Guest"}
+              </p>
+            </div>
+
             <Button
-              className="mt-5 w-full bg-white/15 text-white shadow-none hover:bg-white/20"
+              className="mt-4 h-10 w-full bg-white/15 text-sm text-white shadow-none hover:bg-white/20"
               onClick={() => setIsEditProfileOpen(true)}
             >
               Edit Profile
             </Button>
             <Button
-              className="mt-3 w-full bg-slate-950 text-white shadow-none hover:bg-slate-800"
+              className="mt-2.5 h-10 w-full bg-slate-950 text-sm text-white shadow-none hover:bg-slate-800"
               onClick={() => {
                 void handleLogout();
               }}
