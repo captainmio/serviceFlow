@@ -8,6 +8,7 @@ import { CustomersPage } from "./pages/customers-page";
 import { LoginPage } from "./pages/login-page";
 import { NotFoundPage } from "./pages/not-found-page";
 import { ServicesPage } from "./pages/services-page";
+import { WorkLogsPage } from "./pages/work-logs-page";
 import { getSessionRequest } from "./services/auth-api";
 import { useAuthStore } from "./stores/auth-store";
 
@@ -118,6 +119,14 @@ export const App = () => {
         element={
           <ProtectedRoute>
             <ServicesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/work-logs"
+        element={
+          <ProtectedRoute>
+            <WorkLogsPage />
           </ProtectedRoute>
         }
       />

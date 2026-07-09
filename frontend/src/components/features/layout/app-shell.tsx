@@ -12,6 +12,7 @@ interface NavigationItem {
 }
 
 const extendedNavigationItems: NavigationItem[] = [
+  { label: "Work Logs", to: "/work-logs" },
   { label: "Customers", to: "/customers" },
   { label: "Services", to: "/services", roles: ["admin"] },
   { label: "Projects", to: "/projects", roles: ["admin", "manager"] },

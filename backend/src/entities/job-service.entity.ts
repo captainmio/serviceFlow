@@ -38,7 +38,7 @@ export class JobService {
   })
   hourlyRate!: number;
 
-  @ManyToMany(() => User)
+  @ManyToMany(() => User, (user) => user.assignedJobServices)
   @JoinTable({
     name: "job_service_assignees",
     joinColumn: {
