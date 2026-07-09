@@ -8,6 +8,8 @@ import {
   listWorkLogOptionsHandler,
   listWorkLogsHandler,
   reviewWorkLogPeriodHandler,
+  submitWorkLogWeekHandler,
+  unsubmitWorkLogWeekHandler,
   updateWorkLogHandler
 } from "./work-log.controller.js";
 
@@ -19,6 +21,16 @@ workLogRouter.get("/period", getWorkLogPeriodHandler);
 workLogRouter.get("/", listWorkLogsHandler);
 workLogRouter.get("/:workLogId", getWorkLogHandler);
 workLogRouter.post("/", requireRoles(["manager", "team_member"]), createWorkLogHandler);
+workLogRouter.post(
+  "/week-submissions",
+  requireRoles(["manager", "team_member"]),
+  submitWorkLogWeekHandler
+);
+workLogRouter.delete(
+  "/week-submissions",
+  requireRoles(["manager", "team_member"]),
+  unsubmitWorkLogWeekHandler
+);
 workLogRouter.put("/:workLogId", updateWorkLogHandler);
 workLogRouter.delete("/:workLogId", deleteWorkLogHandler);
 workLogRouter.patch("/period/review", requireRoles(["admin"]), reviewWorkLogPeriodHandler);

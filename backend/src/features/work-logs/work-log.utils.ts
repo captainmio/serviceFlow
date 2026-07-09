@@ -20,6 +20,12 @@ export const getWeekStart = (dateValue: string) => {
   return formatLocalDate(date);
 };
 
+export const getWeekEnd = (weekStart: string) => {
+  const date = new Date(`${weekStart}T00:00:00`);
+  date.setDate(date.getDate() + 6);
+  return formatLocalDate(date);
+};
+
 export const getMonthStart = (dateValue: string) => `${dateValue.slice(0, 7)}-01`;
 
 export const assertHoursWithinLimits = ({

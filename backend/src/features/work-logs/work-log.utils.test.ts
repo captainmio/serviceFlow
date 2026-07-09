@@ -4,6 +4,7 @@ import {
   assertHoursWithinLimits,
   calculateLineTotal,
   getMonthStart,
+  getWeekEnd,
   getWeekStart,
   WorkLogLimitError
 } from "./work-log.utils.js";
@@ -15,6 +16,7 @@ test("work log line total uses hours multiplied by hourly rate", () => {
 
 test("work log week grouping starts on Monday", () => {
   assert.equal(getWeekStart("2026-07-09"), "2026-07-06");
+  assert.equal(getWeekEnd("2026-07-06"), "2026-07-12");
   assert.equal(getMonthStart("2026-07-09"), "2026-07-01");
 });
 

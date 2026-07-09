@@ -27,7 +27,9 @@ const buildProjectOptions = (options: WorkLogOption[]) =>
         {
           projectId: option.projectId,
           projectTitle: option.projectTitle,
-          customerName: option.customerName
+          customerName: option.customerName,
+          projectStartDate: option.projectStartDate,
+          projectDueDate: option.projectDueDate
         }
       ])
     ).values()
@@ -40,9 +42,18 @@ interface WorkLogEntryFormProps {
   canCreate: boolean;
   userRole: UserRole;
   initialProjectId?: string;
+  initialWeekStart?: string;
   onSubmit: (payload: WorkLogPayload) => Promise<void>;
   onCancelEdit: () => void;
 }
+
+const formatTodayKey = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 export const WorkLogEntryForm = ({
   options,
@@ -51,6 +62,7 @@ export const WorkLogEntryForm = ({
   canCreate,
   userRole,
   initialProjectId,
+  initialWeekStart,
   onSubmit,
   onCancelEdit
 }: WorkLogEntryFormProps) => {
@@ -60,7 +72,9 @@ export const WorkLogEntryForm = ({
     handleSubmit,
     reset,
     watch,
+    setError,
     setValue,
+    clearErrors,
     formState: { errors }
   } = useForm<WorkLogFormValues>({
     resolver: zodResolver(workLogFormSchema),
@@ -79,7 +93,22 @@ export const WorkLogEntryForm = ({
     () => options.filter((option) => option.projectId === selectedProjectId),
     [options, selectedProjectId]
   );
+  const selectedProject = useMemo(
+    () =>
+      availableProjects.find((project) => project.projectId === selectedProjectId) ??
+      (editingLog
+        ? {
+            projectId: editingLog.projectId,
+            projectTitle: editingLog.projectTitle,
+            customerName: editingLog.customerName,
+            projectStartDate: editingLog.projectStartDate,
+            projectDueDate: editingLog.projectDueDate
+          }
+        : null),
+    [availableProjects, editingLog, selectedProjectId]
+  );
   const isReadOnlySelection = Boolean(editingLog) || userRole === "admin";
+  const maxWorkDate = formatTodayKey();
 
   useEffect(() => {
     if (editingLog) {
@@ -95,15 +124,17 @@ export const WorkLogEntryForm = ({
 
     const fallbackProjectId = initialProjectId || availableProjects[0]?.projectId || "";
     const fallbackServiceOptions = options.filter((option) => option.projectId === fallbackProjectId);
+    const fallbackWorkDate =
+      initialWeekStart && initialWeekStart <= maxWorkDate ? initialWeekStart : "";
 
     reset({
       projectId: fallbackProjectId,
       jobServiceId: fallbackServiceOptions[0]?.jobServiceId ?? "",
-      workDate: "",
+      workDate: fallbackWorkDate,
       hours: 0,
       notes: ""
     });
-  }, [availableProjects, editingLog, initialProjectId, options, reset]);
+  }, [availableProjects, editingLog, initialProjectId, initialWeekStart, maxWorkDate, options, reset]);
 
   useEffect(() => {
     if (editingLog || !initialProjectId || selectedProjectId === initialProjectId) {
@@ -135,6 +166,10 @@ export const WorkLogEntryForm = ({
     }
   }, [editingLog, selectedJobServiceId, serviceOptions, setValue]);
 
+  useEffect(() => {
+    clearErrors("workDate");
+  }, [clearErrors, selectedProjectId]);
+
   if (!editingLog && canCreate && options.length === 0) {
     return (
       <section className="rounded-[1.75rem] border border-[#EEF2FF] bg-white p-5 shadow-[0_20px_60px_rgba(11,20,55,0.08)] sm:p-6">
@@ -151,6 +186,20 @@ export const WorkLogEntryForm = ({
     <form
       className="rounded-[1.75rem] border border-[#EEF2FF] bg-white p-5 shadow-[0_20px_60px_rgba(11,20,55,0.08)] sm:p-6"
       onSubmit={handleSubmit(async (values) => {
+        if (selectedProject?.projectStartDate && values.workDate < selectedProject.projectStartDate) {
+          setError("workDate", {
+            message: "Work date must be on or after the project's start date"
+          });
+          return;
+        }
+
+        if (selectedProject?.projectDueDate && values.workDate > selectedProject.projectDueDate) {
+          setError("workDate", {
+            message: "Work date must be on or before the project's due date"
+          });
+          return;
+        }
+
         await onSubmit({
           jobServiceId: values.jobServiceId,
           workDate: values.workDate,
@@ -224,6 +273,8 @@ export const WorkLogEntryForm = ({
             <Input
               label="Work date"
               type="date"
+              min={selectedProject?.projectStartDate ?? undefined}
+              max={selectedProject?.projectDueDate ?? maxWorkDate}
               error={errors.workDate?.message}
               {...register("workDate")}
             />

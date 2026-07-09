@@ -15,6 +15,8 @@ export interface WorkLogOption {
   projectId: string;
   projectTitle: string;
   customerName: string;
+  projectStartDate: string | null;
+  projectDueDate: string | null;
   serviceId: string;
   serviceName: string;
   hourlyRate: number;
@@ -26,6 +28,8 @@ export interface WorkLog {
   projectId: string;
   projectTitle: string;
   customerName: string;
+  projectStartDate: string | null;
+  projectDueDate: string | null;
   jobServiceId: string;
   serviceId: string;
   serviceName: string;
@@ -37,6 +41,7 @@ export interface WorkLog {
   hourlyRate: number;
   lineTotal: number;
   notes: string;
+  isWeekSubmitted: boolean;
   canEdit: boolean;
   canDelete: boolean;
   createdAt: string;
@@ -53,4 +58,11 @@ export interface WorkLogPeriod {
   reviewedAt: string | null;
   rejectionReason: string | null;
   isLocked: boolean;
+}
+
+export interface WorkLogWeekSubmission {
+  projectId: string;
+  weekStart: string;
+  monthStart: string;
+  submittedAt: string;
 }

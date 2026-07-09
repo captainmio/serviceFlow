@@ -14,6 +14,8 @@ import {
   listWorkLogOptions,
   listWorkLogs,
   reviewWorkLogPeriod,
+  submitWorkLogWeek,
+  unsubmitWorkLogWeek,
   updateWorkLog,
   WorkLogAccessError,
   WorkLogNotFoundError,
@@ -23,7 +25,8 @@ import {
   workLogListQuerySchema,
   workLogPayloadSchema,
   workLogPeriodQuerySchema,
-  workLogPeriodReviewSchema
+  workLogPeriodReviewSchema,
+  workLogWeekSubmissionSchema
 } from "./work-log.schemas.js";
 
 const handleWorkLogError = (error: unknown, response: Response) => {
@@ -212,5 +215,59 @@ export const reviewWorkLogPeriodHandler = async (
     }
 
     response.status(500).json({ message: "Unable to review this work-log month right now" });
+  }
+};
+
+export const submitWorkLogWeekHandler = async (
+  request: AuthenticatedRequest,
+  response: Response
+) => {
+  try {
+    const authUser = requireAuthenticatedUser(request, response);
+
+    if (!authUser) {
+      return;
+    }
+
+    const payload = workLogWeekSubmissionSchema.parse(request.body);
+    const submission = await submitWorkLogWeek(payload, authUser);
+    response.status(201).json(submission);
+  } catch (error: unknown) {
+    if (handleWorkLogError(error, response)) {
+      return;
+    }
+
+    if (respondWithZodError(response, error, "Invalid work-log week submission payload")) {
+      return;
+    }
+
+    response.status(500).json({ message: "Unable to submit this work-log week right now" });
+  }
+};
+
+export const unsubmitWorkLogWeekHandler = async (
+  request: AuthenticatedRequest,
+  response: Response
+) => {
+  try {
+    const authUser = requireAuthenticatedUser(request, response);
+
+    if (!authUser) {
+      return;
+    }
+
+    const payload = workLogWeekSubmissionSchema.parse(request.body);
+    await unsubmitWorkLogWeek(payload, authUser);
+    response.status(204).send();
+  } catch (error: unknown) {
+    if (handleWorkLogError(error, response)) {
+      return;
+    }
+
+    if (respondWithZodError(response, error, "Invalid work-log week submission payload")) {
+      return;
+    }
+
+    response.status(500).json({ message: "Unable to unsubmit this work-log week right now" });
   }
 };

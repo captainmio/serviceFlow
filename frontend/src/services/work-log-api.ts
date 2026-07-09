@@ -3,7 +3,8 @@ import type {
   WorkLogOption,
   WorkLogPayload,
   WorkLogPeriod,
-  WorkLogMonthStatus
+  WorkLogMonthStatus,
+  WorkLogWeekSubmission
 } from "../types/work-log";
 import { apiClient } from "./api-client";
 
@@ -73,4 +74,21 @@ export const reviewWorkLogPeriodRequest = async (payload: {
 }): Promise<WorkLogPeriod> => {
   const { data } = await apiClient.patch<WorkLogPeriod>("/work-logs/period/review", payload);
   return data;
+};
+
+export const submitWorkLogWeekRequest = async (payload: {
+  projectId: string;
+  weekStart: string;
+}): Promise<WorkLogWeekSubmission> => {
+  const { data } = await apiClient.post<WorkLogWeekSubmission>("/work-logs/week-submissions", payload);
+  return data;
+};
+
+export const unsubmitWorkLogWeekRequest = async (payload: {
+  projectId: string;
+  weekStart: string;
+}): Promise<void> => {
+  await apiClient.delete("/work-logs/week-submissions", {
+    data: payload
+  });
 };

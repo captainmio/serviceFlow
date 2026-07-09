@@ -1,27 +1,32 @@
-import { Between, Not } from "typeorm";
+import { Between, In, Not } from "typeorm";
 import { appDataSource } from "../../database/data-source.js";
 import { Job } from "../../entities/job.entity.js";
 import { JobService } from "../../entities/job-service.entity.js";
 import type { WorkLogMonthStatus } from "../../entities/work-log-month-status.js";
 import { WorkLogPeriod } from "../../entities/work-log-period.entity.js";
 import { WorkLog } from "../../entities/work-log.entity.js";
+import { WorkLogWeekSubmission } from "../../entities/work-log-week-submission.entity.js";
 import { User } from "../../entities/user.entity.js";
+import { isMissingTableError } from "../../shared/database/typeorm-helpers.js";
 import type { AuthenticatedUser } from "../auth/auth.types.js";
 import type {
   WorkLogListQuery,
   WorkLogPayload,
-  WorkLogPeriodReviewPayload
+  WorkLogPeriodReviewPayload,
+  WorkLogWeekSubmissionPayload
 } from "./work-log.schemas.js";
 import type {
   WorkLogOptionResponse,
   WorkLogPeriodResponse,
-  WorkLogResponse
+  WorkLogResponse,
+  WorkLogWeekSubmissionResponse
 } from "./work-log.types.js";
 import {
   assertHoursWithinLimits,
   calculateLineTotal,
   formatLocalDate,
   getMonthStart,
+  getWeekEnd,
   getWeekStart,
   WorkLogLimitError
 } from "./work-log.utils.js";
@@ -29,6 +34,11 @@ import {
 export class WorkLogAccessError extends Error {}
 export class WorkLogNotFoundError extends Error {}
 export class WorkLogValidationError extends Error {}
+
+interface UpdateTargetContext {
+  jobService: JobService;
+  project: Job;
+}
 
 const blockedProjectStatuses = new Set(["approved", "invoiced", "paid", "cancelled"]);
 
@@ -38,15 +48,6 @@ const toAuthUser = (user: User) => ({
   email: user.email,
   role: user.role
 });
-
-const startOfWeekToEndOfWeek = (weekStart: string) => {
-  const end = new Date(`${weekStart}T00:00:00`);
-  end.setDate(end.getDate() + 6);
-  return formatLocalDate(end);
-};
-
-const isManagerOfProject = (authUser: AuthenticatedUser, project: Job) =>
-  authUser.role === "manager" && project.projectManager?.uuid === authUser.id;
 
 const isAssignedToJobService = (authUserId: string, jobService: JobService) =>
   jobService.assignees.some((assignee) => assignee.uuid === authUserId);
@@ -62,6 +63,39 @@ const ensureWorkDateNotInFuture = (workDate: string) => {
 
   if (workDate > todayKey) {
     throw new WorkLogValidationError("Work date cannot be in the future");
+  }
+};
+
+const ensureWorkDateWithinProjectWindow = (project: Job, workDate: string) => {
+  if (project.startDate && workDate < project.startDate) {
+    throw new WorkLogValidationError("Work date must be on or after the project's start date");
+  }
+
+  if (project.dueDate && workDate > project.dueDate) {
+    throw new WorkLogValidationError("Work date must be on or before the project's due date");
+  }
+};
+
+const ensureWeekWithinProjectWindow = (project: Job, weekStart: string) => {
+  const weekEnd = getWeekEnd(weekStart);
+
+  if (project.startDate && weekEnd < project.startDate) {
+    throw new WorkLogValidationError("This week is before the project's start date");
+  }
+
+  if (project.dueDate && weekStart > project.dueDate) {
+    throw new WorkLogValidationError("This week is after the project's due date");
+  }
+};
+
+const ensureCurrentWeekSubmission = (weekStart: string) => {
+  const today = new Date();
+  const currentWeekStart = getWeekStart(
+    formatLocalDate(new Date(today.getFullYear(), today.getMonth(), today.getDate()))
+  );
+
+  if (weekStart !== currentWeekStart) {
+    throw new WorkLogValidationError("Only the current week can be submitted right now");
   }
 };
 
@@ -88,6 +122,25 @@ const loadJobServiceOrThrow = async (jobServiceId: string) => {
   }
 
   return jobService;
+};
+
+const resolveUpdateTargetContext = async (
+  workLog: WorkLog,
+  payloadJobServiceId: string
+): Promise<UpdateTargetContext> => {
+  if (payloadJobServiceId === workLog.jobService.id) {
+    return {
+      jobService: workLog.jobService,
+      project: workLog.job
+    };
+  }
+
+  const jobService = await loadJobServiceOrThrow(payloadJobServiceId);
+
+  return {
+    jobService,
+    project: jobService.job
+  };
 };
 
 const loadProjectOrThrow = async (projectId: string) => {
@@ -152,17 +205,32 @@ const loadWorkLogPeriod = async (projectId: string, monthStart: string) => {
   });
 };
 
+const loadWeekSubmission = async (projectId: string, userId: string, weekStart: string) => {
+  const repository = appDataSource.getRepository(WorkLogWeekSubmission);
+  try {
+    return await repository.findOne({
+      where: {
+        job: { id: projectId },
+        user: { uuid: userId },
+        weekStart
+      },
+      relations: {
+        job: true,
+        user: true
+      }
+    });
+  } catch (error: unknown) {
+    if (isMissingTableError(error)) {
+      return null;
+    }
+
+    throw error;
+  }
+};
+
 const ensureVisibleProject = (project: Job, authUser: AuthenticatedUser) => {
   if (authUser.role === "admin") {
     return;
-  }
-
-  if (authUser.role === "manager") {
-    if (isManagerOfProject(authUser, project) || isAssignedToProject(authUser.id, project)) {
-      return;
-    }
-
-    throw new WorkLogAccessError("You do not have access to this project's work logs");
   }
 
   if (!isAssignedToProject(authUser.id, project)) {
@@ -176,10 +244,6 @@ const ensureVisibleWorkLog = (workLog: WorkLog, authUser: AuthenticatedUser) => 
   }
 
   if (workLog.user.uuid === authUser.id) {
-    return;
-  }
-
-  if (isManagerOfProject(authUser, workLog.job)) {
     return;
   }
 
@@ -232,6 +296,25 @@ const ensureDeleteAccess = (authUser: AuthenticatedUser, workLog: WorkLog) => {
   }
 };
 
+const ensureWeekNotSubmittedForNonAdmin = async (
+  authUser: AuthenticatedUser,
+  projectId: string,
+  userId: string,
+  weekStart: string
+) => {
+  if (authUser.role === "admin") {
+    return;
+  }
+
+  const submission = await loadWeekSubmission(projectId, userId, weekStart);
+
+  if (submission) {
+    throw new WorkLogValidationError(
+      "This week has already been submitted. Team members can no longer change work logs for it"
+    );
+  }
+};
+
 const loadUserHourTotals = async ({
   userId,
   workDate,
@@ -243,7 +326,7 @@ const loadUserHourTotals = async ({
 }) => {
   const repository = appDataSource.getRepository(WorkLog);
   const weekStart = getWeekStart(workDate);
-  const weekEnd = startOfWeekToEndOfWeek(weekStart);
+  const weekEnd = getWeekEnd(weekStart);
 
   const [dayLogs, weekLogs] = await Promise.all([
     repository.find({
@@ -268,17 +351,24 @@ const loadUserHourTotals = async ({
   };
 };
 
-const toWorkLogResponse = (workLog: WorkLog, authUser: AuthenticatedUser): WorkLogResponse => {
+const toWorkLogResponse = (
+  workLog: WorkLog,
+  authUser: AuthenticatedUser,
+  isWeekSubmitted: boolean
+): WorkLogResponse => {
   const isOwnLog = workLog.user.uuid === authUser.id;
   const canEdit =
-    authUser.role === "admin" || ((authUser.role === "manager" || authUser.role === "team_member") && isOwnLog);
-  const canDelete = authUser.role !== "admin" && isOwnLog;
+    authUser.role === "admin" ||
+    ((authUser.role === "manager" || authUser.role === "team_member") && isOwnLog && !isWeekSubmitted);
+  const canDelete = authUser.role !== "admin" && isOwnLog && !isWeekSubmitted;
 
   return {
     id: workLog.id,
     projectId: workLog.job.id,
     projectTitle: workLog.job.title,
     customerName: workLog.job.customer.companyName,
+    projectStartDate: workLog.job.startDate,
+    projectDueDate: workLog.job.dueDate,
     jobServiceId: workLog.jobService.id,
     serviceId: workLog.jobService.service.id,
     serviceName: workLog.jobService.service.name,
@@ -290,11 +380,47 @@ const toWorkLogResponse = (workLog: WorkLog, authUser: AuthenticatedUser): WorkL
     hourlyRate: workLog.hourlyRate,
     lineTotal: workLog.lineTotal,
     notes: workLog.notes,
+    isWeekSubmitted,
     canEdit,
     canDelete,
     createdAt: workLog.createdAt.toISOString(),
     updatedAt: workLog.updatedAt.toISOString()
   };
+};
+
+const buildWeekSubmissionLookup = async (workLogs: WorkLog[]) => {
+  if (workLogs.length === 0) {
+    return new Set<string>();
+  }
+
+  const submissionRepository = appDataSource.getRepository(WorkLogWeekSubmission);
+  const uniqueJobIds = Array.from(new Set(workLogs.map((workLog) => workLog.job.id)));
+  const uniqueUserIds = Array.from(new Set(workLogs.map((workLog) => workLog.user.uuid)));
+  const uniqueWeekStarts = Array.from(new Set(workLogs.map((workLog) => getWeekStart(workLog.workDate))));
+
+  let submissions: WorkLogWeekSubmission[];
+
+  try {
+    submissions = await submissionRepository.find({
+      where: {
+        job: { id: In(uniqueJobIds) },
+        user: { uuid: In(uniqueUserIds) },
+        weekStart: In(uniqueWeekStarts)
+      },
+      relations: {
+        job: true,
+        user: true
+      }
+    });
+  } catch (error: unknown) {
+    if (isMissingTableError(error)) {
+      return new Set<string>();
+    }
+
+    throw error;
+  }
+
+  return new Set(submissions.map((submission) => `${submission.job.id}:${submission.user.uuid}:${submission.weekStart}`));
 };
 
 const toPeriodResponse = (
@@ -322,11 +448,6 @@ export const listWorkLogOptions = async (
 
   const repository = appDataSource.getRepository(JobService);
   const jobServices = await repository.find({
-    where: {
-      assignees: {
-        uuid: authUser.id
-      }
-    },
     relations: {
       job: {
         customer: true
@@ -344,6 +465,8 @@ export const listWorkLogOptions = async (
       projectId: jobService.job.id,
       projectTitle: jobService.job.title,
       customerName: jobService.job.customer.companyName,
+      projectStartDate: jobService.job.startDate,
+      projectDueDate: jobService.job.dueDate,
       serviceId: jobService.service.id,
       serviceName: jobService.service.name,
       hourlyRate: jobService.hourlyRate,
@@ -390,6 +513,8 @@ export const listWorkLogs = async (
     }
   });
 
+  const submittedWeeks = await buildWeekSubmissionLookup(workLogs);
+
   return workLogs
     .filter((workLog) => {
       try {
@@ -399,7 +524,13 @@ export const listWorkLogs = async (
         return false;
       }
     })
-    .map((workLog) => toWorkLogResponse(workLog, authUser));
+    .map((workLog) =>
+      toWorkLogResponse(
+        workLog,
+        authUser,
+        submittedWeeks.has(`${workLog.job.id}:${workLog.user.uuid}:${getWeekStart(workLog.workDate)}`)
+      )
+    );
 };
 
 export const getWorkLogById = async (
@@ -408,7 +539,10 @@ export const getWorkLogById = async (
 ): Promise<WorkLogResponse> => {
   const workLog = await loadWorkLogOrThrow(workLogId);
   ensureVisibleWorkLog(workLog, authUser);
-  return toWorkLogResponse(workLog, authUser);
+  const isWeekSubmitted = Boolean(
+    await loadWeekSubmission(workLog.job.id, workLog.user.uuid, getWeekStart(workLog.workDate))
+  );
+  return toWorkLogResponse(workLog, authUser, isWeekSubmitted);
 };
 
 export const createWorkLog = async (
@@ -427,9 +561,11 @@ export const createWorkLog = async (
   }
 
   ensureCreateAccess(authUser, jobService);
+  ensureWorkDateWithinProjectWindow(jobService.job, payload.workDate);
 
   const monthStart = getMonthStart(payload.workDate);
   await ensureProjectIsOpenForWorkLogs(jobService.job, monthStart);
+  await ensureWeekNotSubmittedForNonAdmin(authUser, jobService.job.id, user.uuid, getWeekStart(payload.workDate));
 
   const { existingDayHours, existingWeekHours } = await loadUserHourTotals({
     userId: user.uuid,
@@ -466,7 +602,7 @@ export const createWorkLog = async (
 
   const savedWorkLog = await repository.save(workLog);
   const workLogWithRelations = await loadWorkLogOrThrow(savedWorkLog.id);
-  return toWorkLogResponse(workLogWithRelations, authUser);
+  return toWorkLogResponse(workLogWithRelations, authUser, false);
 };
 
 export const updateWorkLog = async (
@@ -479,17 +615,25 @@ export const updateWorkLog = async (
   const workLog = await loadWorkLogOrThrow(workLogId);
   ensureUpdateAccess(authUser, workLog);
 
-  const targetJobService = payload.jobServiceId === workLog.jobService.id
-    ? workLog.jobService
-    : await loadJobServiceOrThrow(payload.jobServiceId);
+  const { jobService: targetJobService, project: targetProject } = await resolveUpdateTargetContext(
+    workLog,
+    payload.jobServiceId
+  );
 
   if (authUser.role !== "admin" && !isAssignedToJobService(authUser.id, targetJobService)) {
     throw new WorkLogAccessError("You can only keep work logs on your assigned project services");
   }
 
   const actingUser = authUser.role === "admin" ? workLog.user : workLog.user;
+  ensureWorkDateWithinProjectWindow(targetProject, payload.workDate);
   const monthStart = getMonthStart(payload.workDate);
-  await ensureProjectIsOpenForWorkLogs(targetJobService.job, monthStart);
+  await ensureProjectIsOpenForWorkLogs(targetProject, monthStart);
+  await ensureWeekNotSubmittedForNonAdmin(
+    authUser,
+    workLog.job.id,
+    workLog.user.uuid,
+    getWeekStart(workLog.workDate)
+  );
 
   const { existingDayHours, existingWeekHours } = await loadUserHourTotals({
     userId: actingUser.uuid,
@@ -513,7 +657,7 @@ export const updateWorkLog = async (
     throw error;
   }
 
-  workLog.job = targetJobService.job;
+  workLog.job = targetProject;
   workLog.jobService = targetJobService;
   workLog.workDate = payload.workDate;
   workLog.hours = payload.hours;
@@ -523,7 +667,10 @@ export const updateWorkLog = async (
 
   await appDataSource.getRepository(WorkLog).save(workLog);
   const updatedWorkLog = await loadWorkLogOrThrow(workLog.id);
-  return toWorkLogResponse(updatedWorkLog, authUser);
+  const isWeekSubmitted = Boolean(
+    await loadWeekSubmission(updatedWorkLog.job.id, updatedWorkLog.user.uuid, getWeekStart(updatedWorkLog.workDate))
+  );
+  return toWorkLogResponse(updatedWorkLog, authUser, isWeekSubmitted);
 };
 
 export const deleteWorkLog = async (
@@ -533,6 +680,12 @@ export const deleteWorkLog = async (
   const workLog = await loadWorkLogOrThrow(workLogId);
   ensureDeleteAccess(authUser, workLog);
   await ensureProjectIsOpenForWorkLogs(workLog.job, getMonthStart(workLog.workDate));
+  await ensureWeekNotSubmittedForNonAdmin(
+    authUser,
+    workLog.job.id,
+    workLog.user.uuid,
+    getWeekStart(workLog.workDate)
+  );
   await appDataSource.getRepository(WorkLog).remove(workLog);
 };
 
@@ -579,4 +732,95 @@ export const reviewWorkLogPeriod = async (
 
   await repository.save(period);
   return toPeriodResponse(project, payload.monthStart, period);
+};
+
+export const submitWorkLogWeek = async (
+  payload: WorkLogWeekSubmissionPayload,
+  authUser: AuthenticatedUser
+): Promise<WorkLogWeekSubmissionResponse> => {
+  if (authUser.role !== "team_member" && authUser.role !== "manager") {
+    throw new WorkLogAccessError("Only team members and managers can submit their current work-log week");
+  }
+
+  ensureCurrentWeekSubmission(payload.weekStart);
+
+  const project = await loadProjectOrThrow(payload.projectId);
+  ensureVisibleProject(project, authUser);
+  ensureWeekWithinProjectWindow(project, payload.weekStart);
+
+  const monthStart = getMonthStart(payload.weekStart);
+  await ensureProjectIsOpenForWorkLogs(project, monthStart);
+
+  const weekEnd = getWeekEnd(payload.weekStart);
+  const workLogRepository = appDataSource.getRepository(WorkLog);
+  const workLogs = await workLogRepository.find({
+    where: {
+      job: { id: payload.projectId },
+      user: { uuid: authUser.id },
+      workDate: Between(payload.weekStart, weekEnd)
+    },
+    relations: {
+      job: true,
+      user: true
+    }
+  });
+
+  if (workLogs.length === 0) {
+    throw new WorkLogValidationError("Add at least one work log before submitting the current week");
+  }
+
+  const existingSubmission = await loadWeekSubmission(payload.projectId, authUser.id, payload.weekStart);
+
+  if (existingSubmission) {
+    throw new WorkLogValidationError("This current week has already been submitted");
+  }
+
+  const user = await appDataSource.getRepository(User).findOne({ where: { uuid: authUser.id } });
+
+  if (!user) {
+    throw new WorkLogAccessError("Unable to identify the active user");
+  }
+
+  const submissionRepository = appDataSource.getRepository(WorkLogWeekSubmission);
+  const submission = submissionRepository.create({
+    job: project,
+    user,
+    weekStart: payload.weekStart,
+    submittedAt: new Date()
+  });
+
+  await submissionRepository.save(submission);
+
+  return {
+    projectId: project.id,
+    weekStart: submission.weekStart,
+    monthStart,
+    submittedAt: submission.submittedAt.toISOString()
+  };
+};
+
+export const unsubmitWorkLogWeek = async (
+  payload: WorkLogWeekSubmissionPayload,
+  authUser: AuthenticatedUser
+): Promise<void> => {
+  if (authUser.role !== "team_member" && authUser.role !== "manager") {
+    throw new WorkLogAccessError(
+      "Only team members and managers can unsubmit their current work-log week"
+    );
+  }
+
+  const project = await loadProjectOrThrow(payload.projectId);
+  ensureVisibleProject(project, authUser);
+  ensureWeekWithinProjectWindow(project, payload.weekStart);
+
+  const monthStart = getMonthStart(payload.weekStart);
+  await ensureProjectIsOpenForWorkLogs(project, monthStart);
+
+  const existingSubmission = await loadWeekSubmission(payload.projectId, authUser.id, payload.weekStart);
+
+  if (!existingSubmission) {
+    throw new WorkLogNotFoundError("This work-log week has not been submitted yet");
+  }
+
+  await appDataSource.getRepository(WorkLogWeekSubmission).remove(existingSubmission);
 };

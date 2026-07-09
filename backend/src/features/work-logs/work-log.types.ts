@@ -6,6 +6,8 @@ export interface WorkLogResponse {
   projectId: string;
   projectTitle: string;
   customerName: string;
+  projectStartDate: string | null;
+  projectDueDate: string | null;
   jobServiceId: string;
   serviceId: string;
   serviceName: string;
@@ -17,6 +19,7 @@ export interface WorkLogResponse {
   hourlyRate: number;
   lineTotal: number;
   notes: string;
+  isWeekSubmitted: boolean;
   canEdit: boolean;
   canDelete: boolean;
   createdAt: string;
@@ -28,10 +31,19 @@ export interface WorkLogOptionResponse {
   projectId: string;
   projectTitle: string;
   customerName: string;
+  projectStartDate: string | null;
+  projectDueDate: string | null;
   serviceId: string;
   serviceName: string;
   hourlyRate: number;
   projectStatus: string;
+}
+
+export interface WorkLogWeekSubmissionResponse {
+  projectId: string;
+  weekStart: string;
+  monthStart: string;
+  submittedAt: string;
 }
 
 export interface WorkLogPeriodResponse {

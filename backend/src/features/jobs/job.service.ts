@@ -8,6 +8,7 @@ import { User } from "../../entities/user.entity.js";
 import type { AuthenticatedUser } from "../auth/auth.types.js";
 import type { JobListQuery, JobPayload } from "./job.schemas.js";
 import type { JobResponse } from "./job.types.js";
+import { buildPersistedJobServiceAssignments } from "./job.utils.js";
 
 export class JobDependencyError extends Error {}
 export class JobNotFoundError extends Error {}
@@ -87,7 +88,6 @@ const findAssignableUsersByIds = async (assignedToIds: string[]) => {
 
 const buildJobServiceAssignments = async (payload: JobPayload) => {
   const serviceRepository = appDataSource.getRepository(Service);
-  const jobServiceRepository = appDataSource.getRepository(JobService);
   const serviceIds = Array.from(new Set(payload.serviceAssignments.map((assignment) => assignment.serviceId)));
   const allAssignedUserIds = payload.serviceAssignments.flatMap((assignment) => assignment.assignedToIds);
 
@@ -102,32 +102,19 @@ const buildJobServiceAssignments = async (payload: JobPayload) => {
     throw new JobDependencyError("Select valid services for this project");
   }
 
-  const servicesById = new Map(services.map((service) => [service.id, service]));
-  const usersById = new Map(assignableUsers.map((user) => [user.uuid, user]));
-
-  return payload.serviceAssignments.map((serviceAssignment) => {
-    const service = servicesById.get(serviceAssignment.serviceId);
-
-    if (!service) {
-      throw new JobDependencyError("Select valid services for this project");
+  try {
+    return buildPersistedJobServiceAssignments({
+      payload,
+      services,
+      assignableUsers
+    }).map((assignment) => appDataSource.getRepository(JobService).create(assignment));
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      throw new JobDependencyError(error.message);
     }
 
-    const assignees = serviceAssignment.assignedToIds.map((assignedToId) => {
-      const user = usersById.get(assignedToId);
-
-      if (!user) {
-        throw new JobDependencyError("Select valid team members or managers for this project service");
-      }
-
-      return user;
-    });
-
-    return jobServiceRepository.create({
-      service,
-      hourlyRate: serviceAssignment.hourlyRate,
-      assignees
-    });
-  });
+    throw error;
+  }
 };
 
 const findProjectManager = async (projectManagerId: string) => {
@@ -351,10 +338,9 @@ export const updateJob = async (
 ): Promise<JobResponse> => {
   const customerRepository = appDataSource.getRepository(Customer);
   const jobRepository = appDataSource.getRepository(Job);
-  const [job, customer, serviceAssignments, projectManager] = await Promise.all([
+  const [job, customer, projectManager] = await Promise.all([
     loadJobOrThrow(jobId),
     customerRepository.findOne({ where: { id: payload.customerId } }),
-    buildJobServiceAssignments(payload),
     findProjectManager(payload.projectManagerId)
   ]);
 
@@ -363,6 +349,20 @@ export const updateJob = async (
   }
 
   await ensureJobTitleIsUnique(payload.customerId, payload.title, jobId);
+
+  const services = await appDataSource.getRepository(Service).find({
+    where: Array.from(new Set(payload.serviceAssignments.map((assignment) => assignment.serviceId))).map((id) => ({ id }))
+  });
+  const assignableUsers = await findAssignableUsersByIds(
+    payload.serviceAssignments.flatMap((assignment) => assignment.assignedToIds)
+  );
+  const serviceAssignments = buildPersistedJobServiceAssignments({
+    payload,
+    services,
+    assignableUsers,
+    job,
+    existingAssignments: job.serviceAssignments
+  }).map((assignment) => appDataSource.getRepository(JobService).create(assignment));
 
   job.title = payload.title.trim();
   job.description = payload.description.trim();

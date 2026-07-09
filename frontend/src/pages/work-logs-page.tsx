@@ -8,17 +8,17 @@ import { WorkLogTable } from "../components/features/work-logs/work-log-table";
 import { Input } from "../components/ui/input";
 import { Select } from "../components/ui/select";
 import { notify } from "../lib/notify";
-import { fetchProjectsRequest } from "../services/project-api";
 import {
   createWorkLogRequest,
   deleteWorkLogRequest,
   fetchWorkLogOptionsRequest,
   fetchWorkLogPeriodRequest,
   fetchWorkLogsRequest,
+  submitWorkLogWeekRequest,
+  unsubmitWorkLogWeekRequest,
   updateWorkLogRequest
 } from "../services/work-log-api";
 import { useAuthStore } from "../stores/auth-store";
-import type { Project } from "../types/project";
 import type { WorkLog, WorkLogOption, WorkLogPeriod, WorkLogPayload } from "../types/work-log";
 
 const monthStartSchema = z.string().regex(/^\d{4}-\d{2}$/);
@@ -34,6 +34,12 @@ const toMonthStart = (monthInput: string) => `${monthInput}-01`;
 
 const formatMonthStatus = (status: WorkLogPeriod["status"]) =>
   status.charAt(0).toUpperCase() + status.slice(1);
+
+const getWeekEndFromStart = (weekStart: string) => {
+  const endDate = new Date(`${weekStart}T00:00:00`);
+  endDate.setDate(endDate.getDate() + 6);
+  return formatDateKey(endDate);
+};
 
 const formatLocalWeekStart = () => {
   const today = new Date();
@@ -105,9 +111,18 @@ const buildWeekOptions = (monthInput: string) => {
   return weeks;
 };
 
+interface AvailableWorkLogProject {
+  id: string;
+  title: string;
+  customerName: string;
+  startDate: string | null;
+  dueDate: string | null;
+}
+
+type WeekSubmissionAction = "submit" | "unsubmit";
+
 export const WorkLogsPage = () => {
   const user = useAuthStore((state) => state.user);
-  const [projects, setProjects] = useState<Project[]>([]);
   const [workLogOptions, setWorkLogOptions] = useState<WorkLogOption[]>([]);
   const [workLogs, setWorkLogs] = useState<WorkLog[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState("");
@@ -117,40 +132,45 @@ export const WorkLogsPage = () => {
   const [period, setPeriod] = useState<WorkLogPeriod | null>(null);
   const [editingLog, setEditingLog] = useState<WorkLog | null>(null);
   const [logToDelete, setLogToDelete] = useState<WorkLog | null>(null);
+  const [weekSubmissionAction, setWeekSubmissionAction] = useState<WeekSubmissionAction | null>(null);
   const [isEntryPanelOpen, setIsEntryPanelOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isFiltering, setIsFiltering] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSubmittingWeek, setIsSubmittingWeek] = useState(false);
   const canCreate = user?.role === "manager" || user?.role === "team_member";
   const canViewLoggedAmount = user?.role !== "team_member";
   const selectedMonthStart = toMonthStart(selectedMonthInput);
   const hasSelectedProject = selectedProjectId.length > 0;
-  const hasSelectedMember = user?.role === "team_member" ? hasSelectedProject : selectedMemberId.length > 0;
+  const hasSelectedMember = user?.role === "admin" ? selectedMemberId.length > 0 : hasSelectedProject;
   const canOpenWorkLogEntry = Boolean(canCreate && hasSelectedProject && hasSelectedMember);
   const weekOptions = useMemo(() => buildWeekOptions(selectedMonthInput), [selectedMonthInput]);
 
   const availableProjects = useMemo(() => {
-    if (user?.role === "team_member") {
-      const uniqueProjects = new Map<string, { id: string; title: string; customerName: string }>();
+    if (user?.role !== "admin") {
+      const uniqueProjects = new Map<string, AvailableWorkLogProject>();
 
       workLogOptions.forEach((option) => {
         uniqueProjects.set(option.projectId, {
           id: option.projectId,
           title: option.projectTitle,
-          customerName: option.customerName
+          customerName: option.customerName,
+          startDate: option.projectStartDate,
+          dueDate: option.projectDueDate
         });
       });
 
       return Array.from(uniqueProjects.values());
     }
 
-    return projects.map((project) => ({
-      id: project.id,
-      title: project.title,
-      customerName: project.customerName
-    }));
-  }, [projects, user?.role, workLogOptions]);
+    return [];
+  }, [user?.role, workLogOptions]);
+
+  const selectedProject = useMemo(
+    () => availableProjects.find((project) => project.id === selectedProjectId) ?? null,
+    [availableProjects, selectedProjectId]
+  );
 
   const loadReferenceData = async () => {
     if (!user) {
@@ -158,12 +178,12 @@ export const WorkLogsPage = () => {
     }
 
     try {
-      const [projectResults, optionResults] = await Promise.all([
-        user.role === "team_member" ? Promise.resolve<Project[]>([]) : fetchProjectsRequest(),
-        user.role === "admin" ? Promise.resolve<WorkLogOption[]>([]) : fetchWorkLogOptionsRequest()
-      ]);
+      if (user.role === "admin") {
+        setWorkLogOptions([]);
+        return;
+      }
 
-      setProjects(projectResults);
+      const optionResults = await fetchWorkLogOptionsRequest();
       setWorkLogOptions(optionResults);
     } catch (error: unknown) {
       notify.error(error instanceof Error ? error.message : "Unable to load work-log reference data");
@@ -198,7 +218,7 @@ export const WorkLogsPage = () => {
     try {
       const results = await fetchWorkLogsRequest({
         projectId: selectedProjectId || undefined,
-        memberId: user.role === "team_member" ? user.id : selectedMemberId !== "all" ? selectedMemberId : undefined,
+        memberId: user.role === "admin" ? (selectedMemberId !== "all" ? selectedMemberId : undefined) : user.id,
         monthStart: selectedMonthStart
       });
       setWorkLogs(results);
@@ -248,7 +268,7 @@ export const WorkLogsPage = () => {
       return;
     }
 
-    if (user?.role !== "team_member" && !selectedMemberId) {
+    if (user?.role === "admin" && !selectedMemberId) {
       setSelectedMemberId("all");
     }
   }, [selectedMemberId, selectedProjectId, user?.role]);
@@ -296,6 +316,53 @@ export const WorkLogsPage = () => {
 
     return workLogs.filter((workLog) => workLog.weekStart === selectedWeekStart);
   }, [selectedWeekStart, workLogs]);
+
+  const selectedWeekEnd = useMemo(
+    () => (selectedWeekStart ? getWeekEndFromStart(selectedWeekStart) : ""),
+    [selectedWeekStart]
+  );
+  const selectedWeekSubmitted = useMemo(
+    () => filteredWorkLogs.some((workLog) => workLog.isWeekSubmitted),
+    [filteredWorkLogs]
+  );
+  const isCurrentWeekSelected = selectedWeekStart === formatLocalWeekStart();
+  const isSelectedWeekWithinProjectWindow = useMemo(() => {
+    if (!selectedProject || !selectedWeekStart) {
+      return false;
+    }
+
+    if (selectedProject.startDate && selectedWeekEnd < selectedProject.startDate) {
+      return false;
+    }
+
+    if (selectedProject.dueDate && selectedWeekStart > selectedProject.dueDate) {
+      return false;
+    }
+
+    return true;
+  }, [selectedProject, selectedWeekEnd, selectedWeekStart]);
+  const canSubmitCurrentWeek = Boolean(
+    (user?.role === "team_member" || user?.role === "manager") &&
+      hasSelectedProject &&
+      isCurrentWeekSelected &&
+      isSelectedWeekWithinProjectWindow &&
+      filteredWorkLogs.length > 0 &&
+      !selectedWeekSubmitted &&
+      !period?.isLocked
+  );
+  const canUnsubmitSelectedWeek = Boolean(
+    (user?.role === "team_member" || user?.role === "manager") &&
+      hasSelectedProject &&
+      selectedWeekStart &&
+      selectedWeekSubmitted &&
+      !period?.isLocked
+  );
+  const canOpenValidatedWorkLogEntry = Boolean(
+    canOpenWorkLogEntry &&
+      selectedWeekStart &&
+      isSelectedWeekWithinProjectWindow &&
+      !((user?.role === "team_member" || user?.role === "manager") && selectedWeekSubmitted)
+  );
 
   const summary = useMemo(() => {
     return {
@@ -345,6 +412,74 @@ export const WorkLogsPage = () => {
       notify.error(error instanceof Error ? error.message : "Unable to delete this work log");
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleSubmitCurrentWeek = async () => {
+    if (!selectedProjectId || !selectedWeekStart) {
+      notify.error("Select a project and week before submitting the current week.");
+      return false;
+    }
+
+    setIsSubmittingWeek(true);
+
+    try {
+      await submitWorkLogWeekRequest({
+        projectId: selectedProjectId,
+        weekStart: selectedWeekStart
+      });
+      notify.success("Current week submitted successfully.");
+      await loadWorkLogs({ preserveTable: true });
+      return true;
+    } catch (error: unknown) {
+      notify.error(error instanceof Error ? error.message : "Unable to submit this work-log week");
+      return false;
+    } finally {
+      setIsSubmittingWeek(false);
+    }
+  };
+
+  const handleUnsubmitSelectedWeek = async () => {
+    if (!selectedProjectId || !selectedWeekStart) {
+      notify.error("Select a project and week before unsubmitting the week.");
+      return false;
+    }
+
+    setIsSubmittingWeek(true);
+
+    try {
+      await unsubmitWorkLogWeekRequest({
+        projectId: selectedProjectId,
+        weekStart: selectedWeekStart
+      });
+      notify.success("Week unsubmitted successfully.");
+      await loadWorkLogs({ preserveTable: true });
+      return true;
+    } catch (error: unknown) {
+      notify.error(error instanceof Error ? error.message : "Unable to unsubmit this work-log week");
+      return false;
+    } finally {
+      setIsSubmittingWeek(false);
+    }
+  };
+
+  const handleConfirmWeekSubmissionAction = async () => {
+    if (weekSubmissionAction === "submit") {
+      const isSuccessful = await handleSubmitCurrentWeek();
+
+      if (isSuccessful) {
+        setWeekSubmissionAction(null);
+      }
+
+      return;
+    }
+
+    if (weekSubmissionAction === "unsubmit") {
+      const isSuccessful = await handleUnsubmitSelectedWeek();
+
+      if (isSuccessful) {
+        setWeekSubmissionAction(null);
+      }
     }
   };
 
@@ -410,8 +545,8 @@ export const WorkLogsPage = () => {
                   ))}
                 </Select>
 
-                {user?.role === "team_member" ? (
-                  <Input label="Team member filter" value={hasSelectedProject ? user.name : ""} readOnly disabled />
+                {user?.role !== "admin" ? (
+                  <Input label="Team member filter" value={hasSelectedProject ? (user?.name ?? "") : ""} readOnly disabled />
                 ) : (
                   <Select
                     label="Team member filter"
@@ -464,14 +599,55 @@ export const WorkLogsPage = () => {
                 <button
                   type="button"
                   className="w-full inline-flex h-12 items-center justify-center rounded-2xl bg-[#4318FF] px-5 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(67,24,255,0.22)] transition hover:bg-[#3311cc] disabled:cursor-not-allowed disabled:bg-[#C7D2FE] disabled:text-white disabled:shadow-none"
-                  disabled={!canOpenWorkLogEntry}
+                  disabled={!canOpenValidatedWorkLogEntry}
                   onClick={() => {
+                    if (!isSelectedWeekWithinProjectWindow) {
+                      notify.error("The selected week falls outside this project's start and due date window.");
+                      return;
+                    }
+
+                    if ((user?.role === "team_member" || user?.role === "manager") && selectedWeekSubmitted) {
+                      notify.error("This selected week has already been submitted and can no longer accept team member changes.");
+                      return;
+                    }
+
                     setEditingLog(null);
                     setIsEntryPanelOpen(true);
                   }}
                 >
                   Add work log
                 </button>
+              </div>
+            ) : null}
+
+            {user?.role !== "admin" ? (
+              <div className="mt-4 rounded-[1.25rem] border border-[#EEF2FF] bg-[#F8FAFF] p-4">
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#A3AED0]">Weekly submission</p>
+                    <p className="mt-2 text-sm leading-6 text-[#707EAE]">
+                      Submit the selected current week once your entries are complete. You can unsubmit a submitted week only while that project month is still open.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="inline-flex h-11 items-center justify-center rounded-2xl bg-[#2B3674] px-4 text-sm font-semibold text-white transition hover:bg-[#1f2757] disabled:cursor-not-allowed disabled:bg-[#D6DCF2] disabled:text-white"
+                    disabled={
+                      isSubmittingWeek || (!selectedWeekSubmitted ? !canSubmitCurrentWeek : !canUnsubmitSelectedWeek)
+                    }
+                    onClick={() => {
+                      setWeekSubmissionAction(selectedWeekSubmitted ? "unsubmit" : "submit");
+                    }}
+                  >
+                    {isSubmittingWeek
+                      ? selectedWeekSubmitted
+                        ? "Unsubmitting..."
+                        : "Submitting..."
+                      : selectedWeekSubmitted
+                        ? "Unsubmit week"
+                        : "Submit current week"}
+                  </button>
+                </div>
               </div>
             ) : null}
           </div>
@@ -524,6 +700,24 @@ export const WorkLogsPage = () => {
         onConfirm={handleDeleteWorkLog}
       />
 
+      <ConfirmationModal
+        isOpen={Boolean(weekSubmissionAction)}
+        title={weekSubmissionAction === "unsubmit" ? "Unsubmit this week?" : "Submit this week?"}
+        description={
+          weekSubmissionAction === "unsubmit"
+            ? "Are you sure you want to unsubmit this selected week? "
+            : "Are you sure you want to submit this selected week?"
+        }
+        confirmLabel={weekSubmissionAction === "unsubmit" ? "Unsubmit week" : "Submit week"}
+        isConfirming={isSubmittingWeek}
+        onCancel={() => {
+          if (!isSubmittingWeek) {
+            setWeekSubmissionAction(null);
+          }
+        }}
+        onConfirm={handleConfirmWeekSubmissionAction}
+      />
+
       <SlideOverPanel
         isOpen={isEntryPanelOpen}
         title={editingLog ? "Update work log" : "Add work log"}
@@ -546,6 +740,7 @@ export const WorkLogsPage = () => {
           canCreate={Boolean(canCreate)}
           userRole={user?.role ?? "team_member"}
           initialProjectId={selectedProjectId}
+          initialWeekStart={selectedWeekStart}
           onSubmit={handleSaveWorkLog}
           onCancelEdit={() => {
             setEditingLog(null);

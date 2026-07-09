@@ -60,7 +60,14 @@ export const WorkLogTable = ({
                 </div>
                 <div>
                   <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-[#A3AED0]">Work date</dt>
-                  <dd className="mt-1">{new Date(workLog.workDate).toLocaleDateString()}</dd>
+                  <dd className="mt-1">
+                    {new Date(workLog.workDate).toLocaleDateString()}
+                    {workLog.isWeekSubmitted ? (
+                      <span className="ml-2 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
+                        Submitted
+                      </span>
+                    ) : null}
+                  </dd>
                 </div>
                 {canViewLoggedAmount ? (
                   <div>
@@ -120,7 +127,14 @@ export const WorkLogTable = ({
               workLogs.map((workLog) => (
                 <tr key={workLog.id} className="bg-[#F8FAFF]">
                   <td className="rounded-l-2xl px-4 py-4 text-sm text-[#707EAE]">
-                    {new Date(workLog.workDate).toLocaleDateString()}
+                    <div className="flex items-center gap-2">
+                      <span>{new Date(workLog.workDate).toLocaleDateString()}</span>
+                      {workLog.isWeekSubmitted ? (
+                        <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
+                          Submitted
+                        </span>
+                      ) : null}
+                    </div>
                   </td>
                   <td className="px-4 py-4 text-sm">
                     <div className="font-semibold text-[#2B3674]">{workLog.member.name}</div>

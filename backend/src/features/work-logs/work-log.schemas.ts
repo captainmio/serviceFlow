@@ -38,7 +38,13 @@ export const workLogPeriodReviewSchema = z
     }
   });
 
+export const workLogWeekSubmissionSchema = z.object({
+  projectId: z.string().uuid("Select a valid project"),
+  weekStart: dateField
+});
+
 export type WorkLogPayload = z.infer<typeof workLogPayloadSchema>;
 export type WorkLogListQuery = z.infer<typeof workLogListQuerySchema>;
 export type WorkLogPeriodQuery = z.infer<typeof workLogPeriodQuerySchema>;
 export type WorkLogPeriodReviewPayload = z.infer<typeof workLogPeriodReviewSchema>;
+export type WorkLogWeekSubmissionPayload = z.infer<typeof workLogWeekSubmissionSchema>;
