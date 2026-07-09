@@ -88,17 +88,6 @@ const ensureWeekWithinProjectWindow = (project: Job, weekStart: string) => {
   }
 };
 
-const ensureCurrentWeekSubmission = (weekStart: string) => {
-  const today = new Date();
-  const currentWeekStart = getWeekStart(
-    formatLocalDate(new Date(today.getFullYear(), today.getMonth(), today.getDate()))
-  );
-
-  if (weekStart !== currentWeekStart) {
-    throw new WorkLogValidationError("Only the current week can be submitted right now");
-  }
-};
-
 const loadJobServiceOrThrow = async (jobServiceId: string) => {
   const repository = appDataSource.getRepository(JobService);
   const jobService = await repository.findOne({
@@ -739,10 +728,8 @@ export const submitWorkLogWeek = async (
   authUser: AuthenticatedUser
 ): Promise<WorkLogWeekSubmissionResponse> => {
   if (authUser.role !== "team_member" && authUser.role !== "manager") {
-    throw new WorkLogAccessError("Only team members and managers can submit their current work-log week");
+    throw new WorkLogAccessError("Only team members and managers can submit their work-log weeks");
   }
-
-  ensureCurrentWeekSubmission(payload.weekStart);
 
   const project = await loadProjectOrThrow(payload.projectId);
   ensureVisibleProject(project, authUser);
@@ -772,7 +759,7 @@ export const submitWorkLogWeek = async (
   const existingSubmission = await loadWeekSubmission(payload.projectId, authUser.id, payload.weekStart);
 
   if (existingSubmission) {
-    throw new WorkLogValidationError("This current week has already been submitted");
+    throw new WorkLogValidationError("This selected week has already been submitted");
   }
 
   const user = await appDataSource.getRepository(User).findOne({ where: { uuid: authUser.id } });

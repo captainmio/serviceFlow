@@ -1,7 +1,7 @@
 # ServiceFlow - README
 
 ## 1. Project Overview
-* **Purpose:** A small service company uses the system to manage customers, jobs/projects, work logs, expenses, invoices, and payment status.
+* **Purpose:** A small service company uses the system to manage customers, jobs/projects, work logs, approve work logs, invoices, and payment status.
 * **Techstack:**
   - **Backend:** Node.js, TypeScript, Express.js, TypeORM, MySQL, bcrypt, JWT
   - **Frontend:** React, TypeScript, Zod, TailwindCSS v4, React Router, React Hook Form, Recharts, Zustand, Axios

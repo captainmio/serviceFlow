@@ -325,7 +325,6 @@ export const WorkLogsPage = () => {
     () => filteredWorkLogs.some((workLog) => workLog.isWeekSubmitted),
     [filteredWorkLogs]
   );
-  const isCurrentWeekSelected = selectedWeekStart === formatLocalWeekStart();
   const isSelectedWeekWithinProjectWindow = useMemo(() => {
     if (!selectedProject || !selectedWeekStart) {
       return false;
@@ -341,10 +340,10 @@ export const WorkLogsPage = () => {
 
     return true;
   }, [selectedProject, selectedWeekEnd, selectedWeekStart]);
-  const canSubmitCurrentWeek = Boolean(
+  const canSubmitSelectedWeek = Boolean(
     (user?.role === "team_member" || user?.role === "manager") &&
       hasSelectedProject &&
-      isCurrentWeekSelected &&
+      selectedWeekStart &&
       isSelectedWeekWithinProjectWindow &&
       filteredWorkLogs.length > 0 &&
       !selectedWeekSubmitted &&
@@ -415,9 +414,9 @@ export const WorkLogsPage = () => {
     }
   };
 
-  const handleSubmitCurrentWeek = async () => {
+  const handleSubmitSelectedWeek = async () => {
     if (!selectedProjectId || !selectedWeekStart) {
-      notify.error("Select a project and week before submitting the current week.");
+      notify.error("Select a project and week before submitting the selected week.");
       return false;
     }
 
@@ -428,7 +427,7 @@ export const WorkLogsPage = () => {
         projectId: selectedProjectId,
         weekStart: selectedWeekStart
       });
-      notify.success("Current week submitted successfully.");
+      notify.success("Week submitted successfully.");
       await loadWorkLogs({ preserveTable: true });
       return true;
     } catch (error: unknown) {
@@ -465,7 +464,7 @@ export const WorkLogsPage = () => {
 
   const handleConfirmWeekSubmissionAction = async () => {
     if (weekSubmissionAction === "submit") {
-      const isSuccessful = await handleSubmitCurrentWeek();
+      const isSuccessful = await handleSubmitSelectedWeek();
 
       if (isSuccessful) {
         setWeekSubmissionAction(null);
@@ -626,14 +625,14 @@ export const WorkLogsPage = () => {
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#A3AED0]">Weekly submission</p>
                     <p className="mt-2 text-sm leading-6 text-[#707EAE]">
-                      Submit the selected current week once your entries are complete. You can unsubmit a submitted week only while that project month is still open.
+                      Submit your hours once the week is complete. You can only unsubmit while the project month is open.
                     </p>
                   </div>
                   <button
                     type="button"
                     className="inline-flex h-11 items-center justify-center rounded-2xl bg-[#2B3674] px-4 text-sm font-semibold text-white transition hover:bg-[#1f2757] disabled:cursor-not-allowed disabled:bg-[#D6DCF2] disabled:text-white"
                     disabled={
-                      isSubmittingWeek || (!selectedWeekSubmitted ? !canSubmitCurrentWeek : !canUnsubmitSelectedWeek)
+                      isSubmittingWeek || (!selectedWeekSubmitted ? !canSubmitSelectedWeek : !canUnsubmitSelectedWeek)
                     }
                     onClick={() => {
                       setWeekSubmissionAction(selectedWeekSubmitted ? "unsubmit" : "submit");
@@ -645,7 +644,7 @@ export const WorkLogsPage = () => {
                         : "Submitting..."
                       : selectedWeekSubmitted
                         ? "Unsubmit week"
-                        : "Submit current week"}
+                        : "Submit week"}
                   </button>
                 </div>
               </div>
