@@ -28,6 +28,37 @@ export const getWeekEnd = (weekStart: string) => {
 
 export const getMonthStart = (dateValue: string) => `${dateValue.slice(0, 7)}-01`;
 
+export const getMonthEnd = (monthStart: string) => {
+  const year = Number(monthStart.slice(0, 4));
+  const month = Number(monthStart.slice(5, 7));
+  return formatLocalDate(new Date(year, month, 0));
+};
+
+export const getMonthVisibleWeekRange = (monthStart: string) => {
+  const monthEnd = getMonthEnd(monthStart);
+
+  return {
+    start: getWeekStart(monthStart),
+    end: getWeekEnd(getWeekStart(monthEnd))
+  };
+};
+
+export const getWeekMonthOverlapRange = (weekStart: string, monthStart: string) => {
+  const weekEnd = getWeekEnd(weekStart);
+  const monthEnd = getMonthEnd(monthStart);
+  const rangeStart = weekStart > monthStart ? weekStart : monthStart;
+  const rangeEnd = weekEnd < monthEnd ? weekEnd : monthEnd;
+
+  if (rangeStart > rangeEnd) {
+    return null;
+  }
+
+  return {
+    start: rangeStart,
+    end: rangeEnd
+  };
+};
+
 export const assertHoursWithinLimits = ({
   hours,
   existingDayHours,

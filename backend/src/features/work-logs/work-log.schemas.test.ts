@@ -31,7 +31,8 @@ test("work log period rejection requires a reason", () => {
 test("work log week submission schema accepts a valid project and week", () => {
   const result = workLogWeekSubmissionSchema.safeParse({
     projectId: "550e8400-e29b-41d4-a716-446655440000",
-    weekStart: "2026-07-06"
+    weekStart: "2026-07-06",
+    monthStart: "2026-07-01"
   });
 
   assert.equal(result.success, true);

@@ -9,6 +9,7 @@ import {
 } from "typeorm";
 import { Job } from "./job.entity.js";
 import { JobService } from "./job-service.entity.js";
+import { workLogLineStatuses } from "./work-log-line-status.js";
 import { User } from "./user.entity.js";
 
 const decimalTransformer = {
@@ -64,6 +65,24 @@ export class WorkLog {
 
   @Column({ type: "varchar", length: 2000, default: "" })
   notes!: string;
+
+  @Column({
+    type: "enum",
+    enum: workLogLineStatuses,
+    name: "review_status",
+    default: "pending"
+  })
+  reviewStatus!: (typeof workLogLineStatuses)[number];
+
+  @ManyToOne(() => User, { nullable: true, onDelete: "SET NULL" })
+  @JoinColumn({ name: "reviewed_by" })
+  reviewedBy!: User | null;
+
+  @Column({ type: "datetime", name: "reviewed_at", nullable: true })
+  reviewedAt!: Date | null;
+
+  @Column({ type: "varchar", length: 2000, name: "rejection_reason", nullable: true })
+  rejectionReason!: string | null;
 
   @CreateDateColumn({ name: "created_at" })
   createdAt!: Date;

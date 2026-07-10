@@ -142,6 +142,8 @@ export const WorkLogsPage = () => {
   const canCreate = user?.role === "manager" || user?.role === "team_member";
   const canViewLoggedAmount = user?.role !== "team_member";
   const selectedMonthStart = toMonthStart(selectedMonthInput);
+  const currentWeekStart = formatLocalWeekStart();
+  const currentMonthValue = currentMonthInput();
   const hasSelectedProject = selectedProjectId.length > 0;
   const hasSelectedMember = user?.role === "admin" ? selectedMemberId.length > 0 : hasSelectedProject;
   const canOpenWorkLogEntry = Boolean(canCreate && hasSelectedProject && hasSelectedMember);
@@ -230,6 +232,20 @@ export const WorkLogsPage = () => {
     }
   };
 
+  const loadWorkLogPeriod = async () => {
+    if (!user || !selectedProjectId) {
+      setPeriod(null);
+      return;
+    }
+
+    try {
+      const nextPeriod = await fetchWorkLogPeriodRequest(selectedProjectId, selectedMonthStart);
+      setPeriod(nextPeriod);
+    } catch (error: unknown) {
+      notify.error(error instanceof Error ? error.message : "Unable to fetch this work-log month");
+    }
+  };
+
   useEffect(() => {
     void loadReferenceData();
   }, [user]);
@@ -254,11 +270,10 @@ export const WorkLogsPage = () => {
       return;
     }
 
-    const currentWeekStart = formatLocalWeekStart();
     const hasCurrentWeek = weekOptions.some((weekOption) => weekOption.value === currentWeekStart);
 
     setSelectedWeekStart(hasCurrentWeek ? currentWeekStart : (weekOptions[0]?.value ?? ""));
-  }, [selectedMonthInput, selectedWeekStart, weekOptions]);
+  }, [currentWeekStart, selectedMonthInput, selectedWeekStart, weekOptions]);
 
   useEffect(() => {
     if (!selectedProjectId) {
@@ -289,14 +304,7 @@ export const WorkLogsPage = () => {
       return;
     }
 
-    void (async () => {
-      try {
-        const nextPeriod = await fetchWorkLogPeriodRequest(selectedProjectId, selectedMonthStart);
-        setPeriod(nextPeriod);
-      } catch (error: unknown) {
-        notify.error(error instanceof Error ? error.message : "Unable to fetch this work-log month");
-      }
-    })();
+    void loadWorkLogPeriod();
   }, [user, selectedProjectId, selectedMonthStart]);
 
   const memberOptions = useMemo(() => {
@@ -322,8 +330,8 @@ export const WorkLogsPage = () => {
     [selectedWeekStart]
   );
   const selectedWeekSubmitted = useMemo(
-    () => filteredWorkLogs.some((workLog) => workLog.isWeekSubmitted),
-    [filteredWorkLogs]
+    () => Boolean(selectedWeekStart && period?.submittedWeekStarts.includes(selectedWeekStart)),
+    [period?.submittedWeekStarts, selectedWeekStart]
   );
   const isSelectedWeekWithinProjectWindow = useMemo(() => {
     if (!selectedProject || !selectedWeekStart) {
@@ -340,12 +348,25 @@ export const WorkLogsPage = () => {
 
     return true;
   }, [selectedProject, selectedWeekEnd, selectedWeekStart]);
+  const isCrossMonthWeekSelected = useMemo(() => {
+    if (!selectedWeekStart) {
+      return false;
+    }
+
+    return selectedWeekStart.slice(0, 7) !== selectedWeekEnd.slice(0, 7);
+  }, [selectedWeekEnd, selectedWeekStart]);
+  const selectedMonthPortionLabel = useMemo(() => {
+    const monthDate = new Date(`${selectedMonthStart}T00:00:00`);
+    return monthDate.toLocaleDateString(undefined, {
+      month: "long",
+      year: "numeric"
+    });
+  }, [selectedMonthStart]);
   const canSubmitSelectedWeek = Boolean(
     (user?.role === "team_member" || user?.role === "manager") &&
       hasSelectedProject &&
       selectedWeekStart &&
       isSelectedWeekWithinProjectWindow &&
-      filteredWorkLogs.length > 0 &&
       !selectedWeekSubmitted &&
       !period?.isLocked
   );
@@ -365,11 +386,13 @@ export const WorkLogsPage = () => {
 
   const summary = useMemo(() => {
     return {
-      monthHours: workLogs.reduce((total, workLog) => total + workLog.hours, 0),
+      monthHours: workLogs
+        .filter((workLog) => workLog.monthStart === selectedMonthStart)
+        .reduce((total, workLog) => total + workLog.hours, 0),
       loggedAmount: filteredWorkLogs.reduce((total, workLog) => total + workLog.lineTotal, 0),
       selectedWeekHours: filteredWorkLogs.reduce((total, workLog) => total + workLog.hours, 0)
     };
-  }, [filteredWorkLogs, workLogs]);
+  }, [filteredWorkLogs, selectedMonthStart, workLogs]);
 
   const handleSaveWorkLog = async (payload: WorkLogPayload) => {
     setIsSaving(true);
@@ -385,7 +408,7 @@ export const WorkLogsPage = () => {
 
       setEditingLog(null);
       setIsEntryPanelOpen(false);
-      await loadWorkLogs({ preserveTable: true });
+      await Promise.all([loadWorkLogs({ preserveTable: true }), loadWorkLogPeriod()]);
     } catch (error: unknown) {
       notify.error(error instanceof Error ? error.message : "Unable to save this work log");
       throw error;
@@ -406,7 +429,7 @@ export const WorkLogsPage = () => {
       setEditingLog((currentLog) => (currentLog?.id === logToDelete.id ? null : currentLog));
       setLogToDelete(null);
       notify.success("Work log deleted successfully.");
-      await loadWorkLogs({ preserveTable: true });
+      await Promise.all([loadWorkLogs({ preserveTable: true }), loadWorkLogPeriod()]);
     } catch (error: unknown) {
       notify.error(error instanceof Error ? error.message : "Unable to delete this work log");
     } finally {
@@ -425,10 +448,15 @@ export const WorkLogsPage = () => {
     try {
       await submitWorkLogWeekRequest({
         projectId: selectedProjectId,
-        weekStart: selectedWeekStart
+        weekStart: selectedWeekStart,
+        monthStart: selectedMonthStart
       });
-      notify.success("Week submitted successfully.");
-      await loadWorkLogs({ preserveTable: true });
+      notify.success(
+        isCrossMonthWeekSelected
+          ? `${selectedMonthPortionLabel} portion submitted successfully.`
+          : "Week submitted successfully."
+      );
+      await Promise.all([loadWorkLogs({ preserveTable: true }), loadWorkLogPeriod()]);
       return true;
     } catch (error: unknown) {
       notify.error(error instanceof Error ? error.message : "Unable to submit this work-log week");
@@ -449,10 +477,15 @@ export const WorkLogsPage = () => {
     try {
       await unsubmitWorkLogWeekRequest({
         projectId: selectedProjectId,
-        weekStart: selectedWeekStart
+        weekStart: selectedWeekStart,
+        monthStart: selectedMonthStart
       });
-      notify.success("Week unsubmitted successfully.");
-      await loadWorkLogs({ preserveTable: true });
+      notify.success(
+        isCrossMonthWeekSelected
+          ? `${selectedMonthPortionLabel} portion unsubmitted successfully.`
+          : "Week unsubmitted successfully."
+      );
+      await Promise.all([loadWorkLogs({ preserveTable: true }), loadWorkLogPeriod()]);
       return true;
     } catch (error: unknown) {
       notify.error(error instanceof Error ? error.message : "Unable to unsubmit this work-log week");
@@ -482,6 +515,11 @@ export const WorkLogsPage = () => {
     }
   };
 
+  const handleGoToCurrentWeek = () => {
+    setSelectedMonthInput(currentMonthValue);
+    setSelectedWeekStart(currentWeekStart);
+  };
+
   return (
     <AppShell
       eyebrow="Pages / Work Logs"
@@ -509,7 +547,7 @@ export const WorkLogsPage = () => {
             </div>
 
             <div className="mt-5 space-y-4">
-              <div className="grid gap-4 md:grid-cols-[220px_minmax(0,1fr)]">
+              <div className="grid gap-4 md:grid-cols-[220px_minmax(0,1fr)_auto] md:items-end">
                 <Input
                   label="Month"
                   type="month"
@@ -528,6 +566,15 @@ export const WorkLogsPage = () => {
                     </option>
                   ))}
                 </Select>
+
+                <button
+                  type="button"
+                  className="inline-flex h-12 items-center justify-center rounded-2xl border border-[#D9E1F2] bg-[#4318FF] px-5 text-sm font-semibold text-[#FFF] transition hover:border-[#4318FF] hover:text-[#FFF] disabled:cursor-not-allowed disabled:bg-[#C7D2FE] disabled:text-white disabled:shadow-none"
+                  disabled={selectedMonthInput === currentMonthValue && selectedWeekStart === currentWeekStart}
+                  onClick={handleGoToCurrentWeek}
+                >
+                  Go to current week
+                </button>
               </div>
 
               <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
@@ -625,7 +672,12 @@ export const WorkLogsPage = () => {
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#A3AED0]">Weekly submission</p>
                     <p className="mt-2 text-sm leading-6 text-[#707EAE]">
-                      Submit your hours once the week is complete. You can only unsubmit while the project month is open.
+                      {isCrossMonthWeekSelected
+                        ? `This selected week overlaps another month. You are submitting only the ${selectedMonthPortionLabel} portion shown in this screen.`
+                        : "Submit your hours once the week is complete. You can only unsubmit while the project month is open."}
+                      {!filteredWorkLogs.length
+                        ? " You can also submit with no entries to mark this selected portion as complete."
+                        : ""}
                     </p>
                   </div>
                   <button
@@ -643,8 +695,12 @@ export const WorkLogsPage = () => {
                         ? "Unsubmitting..."
                         : "Submitting..."
                       : selectedWeekSubmitted
-                        ? "Unsubmit week"
-                        : "Submit week"}
+                        ? isCrossMonthWeekSelected
+                          ? `Unsubmit ${selectedMonthPortionLabel} portion`
+                          : "Unsubmit week"
+                        : isCrossMonthWeekSelected
+                          ? `Submit ${selectedMonthPortionLabel} portion`
+                          : "Submit week"}
                   </button>
                 </div>
               </div>
@@ -704,10 +760,22 @@ export const WorkLogsPage = () => {
         title={weekSubmissionAction === "unsubmit" ? "Unsubmit this week?" : "Submit this week?"}
         description={
           weekSubmissionAction === "unsubmit"
-            ? "Are you sure you want to unsubmit this selected week? "
-            : "Are you sure you want to submit this selected week?"
+            ? isCrossMonthWeekSelected
+              ? `Are you sure you want to unsubmit only the ${selectedMonthPortionLabel} portion of this overlapping week?`
+              : "Are you sure you want to unsubmit this selected week?"
+            : isCrossMonthWeekSelected
+              ? `Are you sure you want to submit only the ${selectedMonthPortionLabel} portion of this overlapping week?`
+              : "Are you sure you want to submit this selected week?"
         }
-        confirmLabel={weekSubmissionAction === "unsubmit" ? "Unsubmit week" : "Submit week"}
+        confirmLabel={
+          weekSubmissionAction === "unsubmit"
+            ? isCrossMonthWeekSelected
+              ? `Unsubmit ${selectedMonthPortionLabel} portion`
+              : "Unsubmit week"
+            : isCrossMonthWeekSelected
+              ? `Submit ${selectedMonthPortionLabel} portion`
+              : "Submit week"
+        }
         isConfirming={isSubmittingWeek}
         onCancel={() => {
           if (!isSubmittingWeek) {

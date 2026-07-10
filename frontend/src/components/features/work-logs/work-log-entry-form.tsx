@@ -47,11 +47,13 @@ interface WorkLogEntryFormProps {
   onCancelEdit: () => void;
 }
 
-const formatTodayKey = () => {
+const formatOneMonthAheadKey = () => {
   const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, "0");
-  const day = String(today.getDate()).padStart(2, "0");
+  const oneMonthAhead = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  oneMonthAhead.setMonth(oneMonthAhead.getMonth() + 1);
+  const year = oneMonthAhead.getFullYear();
+  const month = String(oneMonthAhead.getMonth() + 1).padStart(2, "0");
+  const day = String(oneMonthAhead.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
 
@@ -108,7 +110,7 @@ export const WorkLogEntryForm = ({
     [availableProjects, editingLog, selectedProjectId]
   );
   const isReadOnlySelection = Boolean(editingLog) || userRole === "admin";
-  const maxWorkDate = formatTodayKey();
+  const maxWorkDate = formatOneMonthAheadKey();
 
   useEffect(() => {
     if (editingLog) {
@@ -124,8 +126,7 @@ export const WorkLogEntryForm = ({
 
     const fallbackProjectId = initialProjectId || availableProjects[0]?.projectId || "";
     const fallbackServiceOptions = options.filter((option) => option.projectId === fallbackProjectId);
-    const fallbackWorkDate =
-      initialWeekStart && initialWeekStart <= maxWorkDate ? initialWeekStart : "";
+    const fallbackWorkDate = initialWeekStart && initialWeekStart <= maxWorkDate ? initialWeekStart : "";
 
     reset({
       projectId: fallbackProjectId,

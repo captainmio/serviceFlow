@@ -79,6 +79,7 @@ export const reviewWorkLogPeriodRequest = async (payload: {
 export const submitWorkLogWeekRequest = async (payload: {
   projectId: string;
   weekStart: string;
+  monthStart: string;
 }): Promise<WorkLogWeekSubmission> => {
   const { data } = await apiClient.post<WorkLogWeekSubmission>("/work-logs/week-submissions", payload);
   return data;
@@ -87,6 +88,7 @@ export const submitWorkLogWeekRequest = async (payload: {
 export const unsubmitWorkLogWeekRequest = async (payload: {
   projectId: string;
   weekStart: string;
+  monthStart: string;
 }): Promise<void> => {
   await apiClient.delete("/work-logs/week-submissions", {
     data: payload

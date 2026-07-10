@@ -4,6 +4,7 @@ import { env } from "./config/env.js";
 import { authRouter } from "./features/auth/auth.routes.js";
 import { customerRouter } from "./features/customers/customer.routes.js";
 import { projectRouter } from "./features/jobs/job.routes.js";
+import { projectApprovalRouter } from "./features/work-logs/project-approval.routes.js";
 import { serviceRouter } from "./features/services/service.routes.js";
 import { userRouter } from "./features/users/user.routes.js";
 import { workLogRouter } from "./features/work-logs/work-log.routes.js";
@@ -27,6 +28,7 @@ export const createApp = () => {
   app.use("/api/customers", customerRouter);
   app.use("/api/services", serviceRouter);
   app.use("/api/projects", projectRouter);
+  app.use("/api/project-approvals", projectApprovalRouter);
   app.use("/api/jobs", projectRouter);
   app.use("/api/users", userRouter);
   app.use("/api/work-logs", workLogRouter);

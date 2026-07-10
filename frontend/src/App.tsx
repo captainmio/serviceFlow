@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { ProjectFormPage } from "./pages/project-form-page";
+import { ProjectApprovalDetailPage } from "./pages/project-approval-detail-page";
+import { ProjectApprovalsPage } from "./pages/project-approvals-page";
 import { ProjectsPage } from "./pages/projects-page";
 import { TeamMemberFormPage } from "./pages/team-member-form-page";
 import { TeamMembersPage } from "./pages/team-members-page";
@@ -58,6 +60,22 @@ export const App = () => {
       <Route path="/jobs" element={<Navigate to="/projects" replace />} />
       <Route path="/jobs/new" element={<Navigate to="/projects/new" replace />} />
       <Route path="/jobs/:jobId/edit" element={<LegacyProjectEditRedirect />} />
+      <Route
+        path="/project-approvals"
+        element={
+          <ProtectedRoute>
+            <ProjectApprovalsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/project-approvals/:projectId"
+        element={
+          <ProtectedRoute>
+            <ProjectApprovalDetailRoute />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/projects"
         element={
@@ -133,4 +151,10 @@ export const App = () => {
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
+};
+
+const ProjectApprovalDetailRoute = () => {
+  const { projectId } = useParams();
+
+  return projectId ? <ProjectApprovalDetailPage projectId={projectId} /> : <Navigate to="/project-approvals" replace />;
 };

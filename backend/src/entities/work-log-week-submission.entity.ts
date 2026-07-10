@@ -12,7 +12,7 @@ import { Job } from "./job.entity.js";
 import { User } from "./user.entity.js";
 
 @Entity({ name: "work_log_week_submissions" })
-@Unique("UQ_work_log_week_submissions_job_user_week", ["job", "user", "weekStart"])
+@Unique("UQ_work_log_week_submissions_job_user_week_month", ["job", "user", "weekStart", "monthStart"])
 export class WorkLogWeekSubmission {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
@@ -28,6 +28,9 @@ export class WorkLogWeekSubmission {
   @Column({ type: "date", name: "week_start" })
   weekStart!: string;
 
+  @Column({ type: "date", name: "month_start" })
+  monthStart!: string;
+
   @Column({ type: "datetime", name: "submitted_at" })
   submittedAt!: Date;
 
@@ -37,4 +40,3 @@ export class WorkLogWeekSubmission {
   @UpdateDateColumn({ name: "updated_at" })
   updatedAt!: Date;
 }
-

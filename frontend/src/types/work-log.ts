@@ -58,6 +58,7 @@ export interface WorkLogPeriod {
   reviewedAt: string | null;
   rejectionReason: string | null;
   isLocked: boolean;
+  submittedWeekStarts: string[];
 }
 
 export interface WorkLogWeekSubmission {

@@ -80,3 +80,4 @@ Transform tasks into verifiable goals:
 * Ask: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
 * Do not silently introduce conflicting architectural patterns. Reuse existing patterns when reasonable.
 * Remove only the dead code directly caused by your own changes.
+* Any changes in the database like migration, please ask me first before running it to make sure it doesn't break anything

@@ -17,6 +17,9 @@ import { ClearJobsTable1720578600000 } from "./migrations/1720578600000-clear-jo
 import { AddProjectManagerToJobs1720580400000 } from "./migrations/1720580400000-add-project-manager-to-jobs.js";
 import { AddWorkLogs1720584000000 } from "./migrations/1720584000000-add-work-logs.js";
 import { AddWorkLogWeekSubmissions1720587600000 } from "./migrations/1720587600000-add-work-log-week-submissions.js";
+import { AddWorkLogLineReviewState1720591200000 } from "./migrations/1720591200000-add-work-log-line-review-state.js";
+import { MakeWorkLogSubmissionsMonthAware1720594800000 } from "./migrations/1720594800000-make-work-log-submissions-month-aware.js";
+import { ClearWorkLogData1720598400000 } from "./migrations/1720598400000-clear-work-log-data.js";
 
 export const appDataSource = new DataSource({
   type: "mysql",
@@ -35,6 +38,9 @@ export const appDataSource = new DataSource({
     ClearJobsTable1720578600000,
     AddProjectManagerToJobs1720580400000,
     AddWorkLogs1720584000000,
-    AddWorkLogWeekSubmissions1720587600000
+    AddWorkLogWeekSubmissions1720587600000,
+    AddWorkLogLineReviewState1720591200000,
+    MakeWorkLogSubmissionsMonthAware1720594800000,
+    ClearWorkLogData1720598400000
   ]
 });
