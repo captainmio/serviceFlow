@@ -190,6 +190,21 @@ Important note:
 - The initial admin user is currently seeded by a migration, not by a standalone `seed` script.
 - The authentication doc mentions `npm run seed --workspace backend`, but that script does not currently exist in `backend/package.json`.
 
+### 4. Optional: create a local development admin
+
+If you want to create an admin manually during first setup, use the dev-only command below:
+
+```bash
+npm run create:admin:dev --workspace backend -- --email=admin@example.com --password=ChangeMe123 --first-name=Local --last-name=Admin
+```
+
+Notes:
+
+- This command works only when `NODE_ENV=development`.
+- It is implemented with `tsx` from `devDependencies`, so it is intended for local development only.
+- It is not part of the production runtime path.
+- It creates an `admin` user with default work-hour limits and today as the start date.
+
 ## How To Run The App
 
 Open two terminals from the repository root.
@@ -277,6 +292,12 @@ npm run migration:run --workspace backend
 
 ```bash
 npm run migration:revert --workspace backend
+```
+
+### Create a development-only admin user
+
+```bash
+npm run create:admin:dev --workspace backend -- --email=admin@example.com --password=ChangeMe123 --first-name=Local --last-name=Admin
 ```
 
 ## API and Runtime Notes
