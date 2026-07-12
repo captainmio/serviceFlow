@@ -4,6 +4,7 @@ import { logoutRequest } from "../../../services/auth-api";
 import { useAuthStore } from "../../../stores/auth-store";
 import { Button } from "../../ui/button";
 import { EditProfileModal } from "./edit-profile-modal";
+import { NotificationBell } from "./notification-bell";
 
 interface NavigationItem {
   label: string;
@@ -14,6 +15,7 @@ interface NavigationItem {
 const extendedNavigationItems: NavigationItem[] = [
   { label: "Work Logs", to: "/work-logs" },
   { label: "Project Approvals", to: "/project-approvals", roles: ["admin", "manager"] },
+  { label: "Invoices", to: "/invoices", roles: ["admin", "manager"] },
   { label: "Customers", to: "/customers", roles: ["admin", "manager"] },
   { label: "Services", to: "/services", roles: ["admin"] },
   { label: "Projects", to: "/projects", roles: ["admin", "manager"] },
@@ -194,6 +196,9 @@ export const AppShell = ({ title, eyebrow, description, children }: AppShellProp
               <p className="text-sm font-medium text-[#A3AED0]">{eyebrow}</p>
               <h1 className="mt-1 text-3xl font-bold tracking-tight text-[#2B3674] sm:text-4xl">{title}</h1>
               {description ? <p className="mt-2 text-sm text-[#707EAE]">{description}</p> : null}
+            </div>
+            <div className="flex items-center justify-end">
+              <NotificationBell role={user?.role ?? null} />
             </div>
           </header>
 

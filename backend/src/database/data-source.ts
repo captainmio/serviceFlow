@@ -2,9 +2,12 @@ import "reflect-metadata";
 import { DataSource } from "typeorm";
 import { env } from "../config/env.js";
 import { Customer } from "../entities/customer.entity.js";
+import { InvoiceItem } from "../entities/invoice-item.entity.js";
 import { Invoice } from "../entities/invoice.entity.js";
 import { Job } from "../entities/job.entity.js";
 import { JobService } from "../entities/job-service.entity.js";
+import { Notification } from "../entities/notification.entity.js";
+import { ProcessQueueJob } from "../entities/process-queue-job.entity.js";
 import { Service } from "../entities/service.entity.js";
 import { User } from "../entities/user.entity.js";
 import { WorkLogPeriod } from "../entities/work-log-period.entity.js";
@@ -20,6 +23,7 @@ import { AddWorkLogWeekSubmissions1720587600000 } from "./migrations/17205876000
 import { AddWorkLogLineReviewState1720591200000 } from "./migrations/1720591200000-add-work-log-line-review-state.js";
 import { MakeWorkLogSubmissionsMonthAware1720594800000 } from "./migrations/1720594800000-make-work-log-submissions-month-aware.js";
 import { ClearWorkLogData1720598400000 } from "./migrations/1720598400000-clear-work-log-data.js";
+import { AddInvoiceWorkflow1720602000000 } from "./migrations/1720602000000-add-invoice-workflow.js";
 
 export const appDataSource = new DataSource({
   type: "mysql",
@@ -30,7 +34,20 @@ export const appDataSource = new DataSource({
   database: env.DB_NAME,
   synchronize: false,
   logging: false,
-  entities: [User, Customer, Job, JobService, Invoice, Service, WorkLog, WorkLogPeriod, WorkLogWeekSubmission],
+  entities: [
+    User,
+    Customer,
+    Job,
+    JobService,
+    Invoice,
+    InvoiceItem,
+    Notification,
+    ProcessQueueJob,
+    Service,
+    WorkLog,
+    WorkLogPeriod,
+    WorkLogWeekSubmission
+  ],
   migrations: [
     AddUserMasterData1720569600000,
     SeedAdminUser1720573200000,
@@ -41,6 +58,7 @@ export const appDataSource = new DataSource({
     AddWorkLogWeekSubmissions1720587600000,
     AddWorkLogLineReviewState1720591200000,
     MakeWorkLogSubmissionsMonthAware1720594800000,
-    ClearWorkLogData1720598400000
+    ClearWorkLogData1720598400000,
+    AddInvoiceWorkflow1720602000000
   ]
 });

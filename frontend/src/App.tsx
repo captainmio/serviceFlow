@@ -4,6 +4,9 @@ import { ProjectFormPage } from "./pages/project-form-page";
 import { ProjectApprovalDetailPage } from "./pages/project-approval-detail-page";
 import { ProjectApprovalsPage } from "./pages/project-approvals-page";
 import { ProjectsPage } from "./pages/projects-page";
+import { InvoiceDetailPage } from "./pages/invoice-detail-page";
+import { InvoicePrintPage } from "./pages/invoice-print-page";
+import { InvoicesPage } from "./pages/invoices-page";
 import { TeamMemberFormPage } from "./pages/team-member-form-page";
 import { TeamMembersPage } from "./pages/team-members-page";
 import { CustomersPage } from "./pages/customers-page";
@@ -73,6 +76,30 @@ export const App = () => {
         element={
           <ProtectedRoute>
             <ProjectApprovalDetailRoute />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/invoices"
+        element={
+          <ProtectedRoute>
+            <InvoicesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/invoices/:invoiceId"
+        element={
+          <ProtectedRoute>
+            <InvoiceDetailRoute />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/invoices/:invoiceId/print"
+        element={
+          <ProtectedRoute>
+            <InvoicePrintRoute />
           </ProtectedRoute>
         }
       />
@@ -157,4 +184,16 @@ const ProjectApprovalDetailRoute = () => {
   const { projectId } = useParams();
 
   return projectId ? <ProjectApprovalDetailPage projectId={projectId} /> : <Navigate to="/project-approvals" replace />;
+};
+
+const InvoiceDetailRoute = () => {
+  const { invoiceId } = useParams();
+
+  return invoiceId ? <InvoiceDetailPage invoiceId={invoiceId} /> : <Navigate to="/invoices" replace />;
+};
+
+const InvoicePrintRoute = () => {
+  const { invoiceId } = useParams();
+
+  return invoiceId ? <InvoicePrintPage invoiceId={invoiceId} /> : <Navigate to="/invoices" replace />;
 };

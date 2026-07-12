@@ -447,6 +447,13 @@ export const getProjectApprovalDetail = async (
     workLogRepository.find({
       where: {
         job: { id: projectId }
+      },
+      relations: {
+        job: true,
+        user: true,
+        jobService: {
+          service: true
+        }
       }
     }),
     buildMissingWeeksByMember(project, monthStart)
