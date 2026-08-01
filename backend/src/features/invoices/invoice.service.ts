@@ -9,6 +9,7 @@ import { Notification } from "../../entities/notification.entity.js";
 import { ProcessQueueJob } from "../../entities/process-queue-job.entity.js";
 import { User } from "../../entities/user.entity.js";
 import { WorkLogPeriod } from "../../entities/work-log-period.entity.js";
+import type { WorkLogMonthStatus } from "../../entities/work-log-month-status.js";
 import { WorkLog } from "../../entities/work-log.entity.js";
 import { WorkLogWeekSubmission } from "../../entities/work-log-week-submission.entity.js";
 import { isDuplicateEntryError, isMissingTableOrColumnError } from "../../shared/database/typeorm-helpers.js";
@@ -28,6 +29,8 @@ import type { NotificationListResponse, NotificationResponse } from "./notificat
 export class InvoiceAccessError extends Error {}
 export class InvoiceValidationError extends Error {}
 export class InvoiceNotFoundError extends Error {}
+
+export const isProjectMonthInvoiceEligible = (status: WorkLogMonthStatus) => status === "approved";
 
 const toAuthUser = (user: User) => ({
   id: user.uuid,
@@ -287,6 +290,10 @@ const loadApprovedPeriods = async () =>
   });
 
 const createEligibleMonthResponse = async (period: WorkLogPeriod): Promise<InvoiceEligibleMonthResponse | null> => {
+  if (!isProjectMonthInvoiceEligible(period.status)) {
+    return null;
+  }
+
   const monthEnd = getMonthEnd(period.monthStart);
   const project = period.job;
   const missingWeeksByMember = await buildMissingWeeksByMember(project, period.monthStart);

@@ -9,6 +9,7 @@ import { Textarea } from "../components/ui/textarea";
 import { notify } from "../lib/notify";
 import {
   fetchProjectApprovalDetailRequest,
+  cancelProjectApprovalMonthRequest,
   finalizeProjectApprovalMonthRequest,
   reviewProjectApprovalLineRequest
 } from "../services/project-approval-api";
@@ -24,6 +25,12 @@ const currentMonthInput = () => {
 
 const formatMonthStatus = (status: ProjectApprovalDetail["monthStatus"]) =>
   status.charAt(0).toUpperCase() + status.slice(1);
+
+const monthStatusClassNames: Record<ProjectApprovalDetail["monthStatus"], string> = {
+  pending: "bg-amber-50 text-amber-700",
+  approved: "bg-emerald-50 text-emerald-700",
+  rejected: "bg-rose-50 text-rose-700"
+};
 
 const formatWeekLabel = (weekStart: string) => {
   const start = new Date(`${weekStart}T00:00:00`);
@@ -251,6 +258,24 @@ export const ProjectApprovalDetailPage = ({ projectId }: ProjectApprovalDetailPa
     }
   };
 
+  const handleCancelApproval = async () => {
+    if (!canSubmit || !detail) {
+      return;
+    }
+
+    setIsFinalizing(true);
+
+    try {
+      const result = await cancelProjectApprovalMonthRequest(projectId, selectedMonthStart);
+      setDetail(result);
+      notify.success("Project month approval cancelled successfully.");
+    } catch (error: unknown) {
+      notify.error(error instanceof Error ? error.message : "Unable to cancel this project month approval");
+    } finally {
+      setIsFinalizing(false);
+    }
+  };
+
   if (user?.role === "team_member") {
     return <Navigate to="/work-logs" replace />;
   }
@@ -289,11 +314,19 @@ export const ProjectApprovalDetailPage = ({ projectId }: ProjectApprovalDetailPa
                       </Link>
                       {canSubmit ? (
                         <Button
-                          className="w-full sm:flex-1 xl:w-auto xl:flex-none"
-                          disabled={(detail.monthStatus === "approved" && detail.incompleteMembers.length === 0) || isFinalizing}
-                          onClick={handleFinalize}
+                          className={`w-full sm:flex-1 xl:w-auto xl:flex-none ${
+                            detail.monthStatus === "approved" ? "bg-rose-600 hover:bg-rose-700" : ""
+                          }`}
+                          disabled={isFinalizing}
+                          onClick={detail.monthStatus === "approved" ? handleCancelApproval : handleFinalize}
                         >
-                          {isFinalizing ? "Submitting..." : "Submit Month Approval"}
+                          {isFinalizing
+                            ? detail.monthStatus === "approved"
+                              ? "Cancelling..."
+                              : "Submitting..."
+                            : detail.monthStatus === "approved"
+                              ? "Cancel Approval"
+                              : "Submit Month Approval"}
                         </Button>
                       ) : (
                         <span className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-[#F8FAFF] px-5 text-sm font-semibold text-[#A3AED0] sm:flex-1 xl:w-auto xl:flex-none">
@@ -516,9 +549,9 @@ export const ProjectApprovalDetailPage = ({ projectId }: ProjectApprovalDetailPa
                 <div className="rounded-[1.75rem] bg-white p-5 shadow-[0_20px_60px_rgba(11,20,55,0.08)] sm:p-6">
                   <p className="text-sm font-medium text-[#A3AED0]">Finalize checklist</p>
                   <div className="mt-4 space-y-3">
-                    <div className="rounded-2xl bg-[#F8FAFF] p-4">
+                    <div className={`rounded-2xl p-4 ${monthStatusClassNames[detail.monthStatus]}`}>
                       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#A3AED0]">Month status</p>
-                      <p className="mt-2 text-lg font-bold text-[#2B3674]">{formatMonthStatus(detail.monthStatus)}</p>
+                      <p className="mt-2 text-lg font-bold">{formatMonthStatus(detail.monthStatus)}</p>
                     </div>
                     <div className="rounded-2xl bg-[#F8FAFF] p-4">
                       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#A3AED0]">Can finalize</p>

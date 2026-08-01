@@ -6,8 +6,10 @@ import {
   canMutateProjectApproval,
   filterApprovalQueueEntries,
   filterRevenueEligibleWorkLogs,
-  filterSubmittedWorkLogs
+  filterSubmittedWorkLogs,
+  resetProjectApprovalPeriod
 } from "./project-approval.service.js";
+import type { WorkLogPeriod } from "../../entities/work-log-period.entity.js";
 
 const createLine = (reviewStatus: "pending" | "approved" | "rejected") =>
   ({ reviewStatus }) as { reviewStatus: "pending" | "approved" | "rejected" };
@@ -121,4 +123,20 @@ test("only managers can mutate project approvals", () => {
   assert.equal(canMutateProjectApproval("manager"), true);
   assert.equal(canMutateProjectApproval("admin"), false);
   assert.equal(canMutateProjectApproval("team_member"), false);
+});
+
+test("cancelling approval resets the project month to pending", () => {
+  const period = {
+    status: "approved",
+    reviewedBy: {},
+    reviewedAt: new Date(),
+    rejectionReason: "old reason"
+  } as WorkLogPeriod;
+
+  resetProjectApprovalPeriod(period);
+
+  assert.equal(period.status, "pending");
+  assert.equal(period.reviewedBy, null);
+  assert.equal(period.reviewedAt, null);
+  assert.equal(period.rejectionReason, null);
 });

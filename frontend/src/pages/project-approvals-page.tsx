@@ -24,6 +24,12 @@ const formatMonthLabel = (monthStart: string) =>
 const formatStatus = (status: ProjectApprovalSummary["monthStatus"]) =>
   status.charAt(0).toUpperCase() + status.slice(1);
 
+const monthStatusClassNames: Record<ProjectApprovalSummary["monthStatus"], string> = {
+  pending: "bg-amber-100 text-amber-700",
+  approved: "bg-emerald-100 text-emerald-700",
+  rejected: "bg-rose-100 text-rose-700"
+};
+
 export const ProjectApprovalsPage = () => {
   const user = useAuthStore((state) => state.user);
   const [projects, setProjects] = useState<ProjectApprovalSummary[]>([]);
@@ -168,18 +174,20 @@ export const ProjectApprovalsPage = () => {
                     </div>
 
                     <div className="flex items-center gap-2 self-start">
-                      <span className="rounded-full bg-[#F4F7FE] px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#4318FF]">
+                      <span className={`rounded-full px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] ${monthStatusClassNames[project.monthStatus]}`}>
                         {formatStatus(project.monthStatus)}
                       </span>
-                      <span
-                        className={`rounded-full px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] ${
-                          project.canFinalize
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-amber-100 text-amber-700"
-                        }`}
-                      >
-                        {project.canFinalize ? "Ready to finalize" : "Needs review"}
-                      </span>
+                      {project.monthStatus !== "approved" ? (
+                        <span
+                          className={`rounded-full px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] ${
+                            project.canFinalize
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-amber-100 text-amber-700"
+                          }`}
+                        >
+                          {project.canFinalize ? "Ready to finalize" : "Needs review"}
+                        </span>
+                      ) : null}
                     </div>
                   </div>
 

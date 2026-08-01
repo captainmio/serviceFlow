@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getAllowedInvoiceStatusTransitions, isInvoiceStatusTransitionAllowed } from "./invoice.service.js";
+import {
+  getAllowedInvoiceStatusTransitions,
+  isInvoiceStatusTransitionAllowed,
+  isProjectMonthInvoiceEligible
+} from "./invoice.service.js";
 
 test("manager can only move a draft invoice to reviewed", () => {
   assert.deepEqual(getAllowedInvoiceStatusTransitions("draft", "manager"), ["reviewed"]);
@@ -24,4 +28,10 @@ test("admin can issue reviewed invoices and mark issued invoices as paid", () =>
     }),
     true
   );
+});
+
+test("only approved project months can be used for invoice drafts", () => {
+  assert.equal(isProjectMonthInvoiceEligible("approved"), true);
+  assert.equal(isProjectMonthInvoiceEligible("pending"), false);
+  assert.equal(isProjectMonthInvoiceEligible("rejected"), false);
 });

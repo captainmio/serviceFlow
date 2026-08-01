@@ -56,3 +56,13 @@ export const finalizeProjectApprovalMonthRequest = async (
   });
   return data;
 };
+
+export const cancelProjectApprovalMonthRequest = async (
+  projectId: string,
+  monthStart: string
+): Promise<ProjectApprovalDetail> => {
+  const { data } = await apiClient.post<ProjectApprovalDetail>(`/project-approvals/${projectId}/cancel`, {
+    monthStart
+  });
+  return data;
+};

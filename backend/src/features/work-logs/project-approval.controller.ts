@@ -7,6 +7,7 @@ import {
 } from "../../shared/http/controller-helpers.js";
 import {
   finalizeProjectApprovalMonth,
+  cancelProjectApprovalMonth,
   getProjectApprovalDetail,
   listProjectApprovals,
   reviewProjectApprovalLine
@@ -139,5 +140,28 @@ export const finalizeProjectApprovalMonthHandler = async (
     }
 
     response.status(500).json({ message: "Unable to finalize this project approval month right now" });
+  }
+};
+
+export const cancelProjectApprovalMonthHandler = async (
+  request: AuthenticatedRequest,
+  response: Response
+) => {
+  try {
+    const authUser = requireAuthenticatedUser(request, response);
+
+    if (!authUser) {
+      return;
+    }
+
+    const payload = finalizeProjectApprovalSchema.parse(request.body);
+    const result = await cancelProjectApprovalMonth(readRouteParam(request.params.projectId), payload, authUser);
+    response.status(200).json(result);
+  } catch (error: unknown) {
+    if (handleProjectApprovalError(error, response)) {
+      return;
+    }
+
+    response.status(500).json({ message: "Unable to cancel this project approval right now" });
   }
 };

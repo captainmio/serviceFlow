@@ -340,6 +340,13 @@ export const filterApprovalQueueEntries = <TEntry extends { summary: { lineItemC
 
 export const canMutateProjectApproval = (role: AuthenticatedUser["role"]) => role === "manager";
 
+export const resetProjectApprovalPeriod = (period: WorkLogPeriod) => {
+  period.status = "pending";
+  period.reviewedBy = null;
+  period.reviewedAt = null;
+  period.rejectionReason = null;
+};
+
 const ensureProjectApprovalMutationAccess = (authUser: AuthenticatedUser) => {
   if (!canMutateProjectApproval(authUser.role)) {
     throw new WorkLogAccessError("Only managers can submit project approvals");
@@ -603,9 +610,17 @@ export const finalizeProjectApprovalMonth = async (
     where: {
       job: { id: projectId },
       workDate: Between(payload.monthStart, monthEnd)
+    },
+    relations: {
+      job: true,
+      user: true
     }
   });
 
+  const submittedWorkLogs = filterSubmittedWorkLogs(
+    workLogs,
+    await buildSubmittedWorkLogLookup(workLogs)
+  );
   const memberStates = await buildMissingWeeksByMember(project, payload.monthStart);
   const existingPeriod = await loadWorkLogPeriod(projectId, payload.monthStart);
 
@@ -616,7 +631,7 @@ export const finalizeProjectApprovalMonth = async (
     throw new WorkLogValidationError("This project month has already been finalized");
   }
 
-  if (!computeCanFinalize({ lineItems: workLogs, periodStatus: "pending" })) {
+  if (!computeCanFinalize({ lineItems: submittedWorkLogs, periodStatus: "pending" })) {
     throw new WorkLogValidationError(
       "Finalize is only available when the selected month has work log lines and has not already been finalized"
     );
@@ -648,6 +663,28 @@ export const finalizeProjectApprovalMonth = async (
 
     throw error;
   }
+
+  return getProjectApprovalDetail(projectId, payload.monthStart, authUser);
+};
+
+export const cancelProjectApprovalMonth = async (
+  projectId: string,
+  payload: FinalizeProjectApprovalPayload,
+  authUser: AuthenticatedUser
+): Promise<ProjectApprovalDetailResponse> => {
+  ensureProjectApprovalMutationAccess(authUser);
+
+  const project = await loadProjectOrThrow(projectId);
+  ensureApprovalAccessToProject(project, authUser);
+  const period = await loadWorkLogPeriod(projectId, payload.monthStart);
+
+  if (!period || period.status !== "approved") {
+    throw new WorkLogValidationError("This project month is not currently approved");
+  }
+
+  resetProjectApprovalPeriod(period);
+
+  await appDataSource.getRepository(WorkLogPeriod).save(period);
 
   return getProjectApprovalDetail(projectId, payload.monthStart, authUser);
 };
