@@ -311,7 +311,7 @@ export const filterSubmittedWorkLogs = <
     )
   );
 
-export const computeCanFinalize = ({
+export const hasSubmittedWorkLogsToFinalize = ({
   lineItems,
   periodStatus
 }: {
@@ -420,10 +420,6 @@ export const listProjectApprovals = async (
         ),
         lineItemCount: submittedWorkLogs.length,
         monthStatus: period?.status ?? "pending",
-        canFinalize: computeCanFinalize({
-          lineItems: submittedWorkLogs,
-          periodStatus: period?.status ?? "pending"
-        })
       } satisfies ProjectApprovalSummaryResponse;
 
       return {
@@ -533,10 +529,6 @@ export const getProjectApprovalDetail = async (
     projectRevenue: Number(
       revenueEligibleProjectWorkLogs.reduce((sum, workLog) => sum + workLog.lineTotal, 0).toFixed(2)
     ),
-    canFinalize: computeCanFinalize({
-      lineItems: submittedWorkLogs,
-      periodStatus: period?.status ?? "pending"
-    })
   };
 };
 
@@ -631,7 +623,7 @@ export const finalizeProjectApprovalMonth = async (
     throw new WorkLogValidationError("This project month has already been finalized");
   }
 
-  if (!computeCanFinalize({ lineItems: submittedWorkLogs, periodStatus: "pending" })) {
+  if (!hasSubmittedWorkLogsToFinalize({ lineItems: submittedWorkLogs, periodStatus: "pending" })) {
     throw new WorkLogValidationError(
       "Finalize is only available when the selected month has work log lines and has not already been finalized"
     );

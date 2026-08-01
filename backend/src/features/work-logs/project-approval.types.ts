@@ -13,7 +13,6 @@ export interface ProjectApprovalSummaryResponse {
   totalLoggedRevenue: number;
   lineItemCount: number;
   monthStatus: WorkLogMonthStatus;
-  canFinalize: boolean;
 }
 
 export interface ProjectApprovalLineResponse {
@@ -56,5 +55,4 @@ export interface ProjectApprovalDetailResponse {
   weeklyRevenue: ProjectApprovalRevenueSummaryResponse[];
   monthRevenue: number;
   projectRevenue: number;
-  canFinalize: boolean;
 }

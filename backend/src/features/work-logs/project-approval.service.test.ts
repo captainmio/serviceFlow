@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  computeCanFinalize,
+  hasSubmittedWorkLogsToFinalize,
   computeQueueResolved,
   canMutateProjectApproval,
   filterApprovalQueueEntries,
@@ -14,8 +14,8 @@ import type { WorkLogPeriod } from "../../entities/work-log-period.entity.js";
 const createLine = (reviewStatus: "pending" | "approved" | "rejected") =>
   ({ reviewStatus }) as { reviewStatus: "pending" | "approved" | "rejected" };
 
-test("computeCanFinalize allows finalizing when all lines are reviewed, including rejected lines", () => {
-  const canFinalize = computeCanFinalize({
+test("hasSubmittedWorkLogsToFinalize allows finalizing when all lines are reviewed, including rejected lines", () => {
+  const canFinalize = hasSubmittedWorkLogsToFinalize({
     lineItems: [createLine("approved"), createLine("rejected")],
     periodStatus: "pending"
   });
@@ -23,10 +23,10 @@ test("computeCanFinalize allows finalizing when all lines are reviewed, includin
   assert.equal(canFinalize, true);
 });
 
-test("computeCanFinalize allows finalizing when some lines are still pending", () => {
-  const canFinalize = computeCanFinalize({
+test("hasSubmittedWorkLogsToFinalize allows finalizing when some lines are still pending", () => {
+  const canFinalize = hasSubmittedWorkLogsToFinalize({
     lineItems: [createLine("approved"), createLine("pending")],
-    periodStatus: "pending"
+        periodStatus: "pending"
   });
 
   assert.equal(canFinalize, true);

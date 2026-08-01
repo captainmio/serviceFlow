@@ -553,10 +553,6 @@ export const ProjectApprovalDetailPage = ({ projectId }: ProjectApprovalDetailPa
                       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#A3AED0]">Month status</p>
                       <p className="mt-2 text-lg font-bold">{formatMonthStatus(detail.monthStatus)}</p>
                     </div>
-                    <div className="rounded-2xl bg-[#F8FAFF] p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#A3AED0]">Can finalize</p>
-                      <p className="mt-2 text-lg font-bold text-[#2B3674]">{detail.canFinalize ? "Yes" : "Not yet"}</p>
-                    </div>
                   </div>
                 </div>
 

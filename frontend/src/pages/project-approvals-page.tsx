@@ -177,17 +177,6 @@ export const ProjectApprovalsPage = () => {
                       <span className={`rounded-full px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] ${monthStatusClassNames[project.monthStatus]}`}>
                         {formatStatus(project.monthStatus)}
                       </span>
-                      {project.monthStatus !== "approved" ? (
-                        <span
-                          className={`rounded-full px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] ${
-                            project.canFinalize
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-amber-100 text-amber-700"
-                          }`}
-                        >
-                          {project.canFinalize ? "Ready to finalize" : "Needs review"}
-                        </span>
-                      ) : null}
                     </div>
                   </div>
 
