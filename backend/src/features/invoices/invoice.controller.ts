@@ -15,9 +15,16 @@ import {
   listInvoices,
   listNotifications,
   markAllNotificationsRead,
+  rejectInvoice,
+  updateInvoiceDraft,
   updateInvoiceStatus
 } from "./invoice.service.js";
-import { createInvoiceDraftSchema, updateInvoiceStatusSchema } from "./invoice.schemas.js";
+import {
+  createInvoiceDraftSchema,
+  rejectInvoiceSchema,
+  updateInvoiceDraftSchema,
+  updateInvoiceStatusSchema
+} from "./invoice.schemas.js";
 
 const handleInvoiceError = (error: unknown, response: Response) => {
   if (respondWithZodError(response, error, "Invalid invoice payload")) {
@@ -116,6 +123,46 @@ export const deleteInvoiceDraftHandler = async (request: AuthenticatedRequest, r
     }
 
     response.status(500).json({ message: "Unable to delete this invoice draft right now" });
+  }
+};
+
+export const rejectInvoiceHandler = async (request: AuthenticatedRequest, response: Response) => {
+  try {
+    const authUser = requireAuthenticatedUser(request, response);
+
+    if (!authUser) {
+      return;
+    }
+
+    const payload = rejectInvoiceSchema.parse(request.body);
+    const result = await rejectInvoice(readRouteParam(request.params.invoiceId), payload, authUser);
+    response.status(200).json(result);
+  } catch (error: unknown) {
+    if (handleInvoiceError(error, response)) {
+      return;
+    }
+
+    response.status(500).json({ message: "Unable to reject this invoice draft right now" });
+  }
+};
+
+export const updateInvoiceDraftHandler = async (request: AuthenticatedRequest, response: Response) => {
+  try {
+    const authUser = requireAuthenticatedUser(request, response);
+
+    if (!authUser) {
+      return;
+    }
+
+    const payload = updateInvoiceDraftSchema.parse(request.body);
+    const result = await updateInvoiceDraft(readRouteParam(request.params.invoiceId), payload, authUser);
+    response.status(200).json(result);
+  } catch (error: unknown) {
+    if (handleInvoiceError(error, response)) {
+      return;
+    }
+
+    response.status(500).json({ message: "Unable to update this invoice draft right now" });
   }
 };
 

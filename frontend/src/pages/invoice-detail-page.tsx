@@ -3,12 +3,30 @@ import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AppShell } from "../components/features/layout/app-shell";
 import { ConfirmationModal } from "../components/features/shared/confirmation-modal";
 import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Textarea } from "../components/ui/textarea";
 import { notify } from "../lib/notify";
-import { deleteInvoiceDraftRequest, fetchInvoiceDetailRequest, updateInvoiceStatusRequest } from "../services/invoice-api";
+import {
+  deleteInvoiceDraftRequest,
+  fetchInvoiceDetailRequest,
+  rejectInvoiceRequest,
+  updateInvoiceDraftRequest,
+  updateInvoiceStatusRequest
+} from "../services/invoice-api";
 import { useAuthStore } from "../stores/auth-store";
 import type { InvoiceDetail, InvoiceStatus } from "../types/invoice";
 
-const formatStatus = (status: InvoiceStatus) => status.charAt(0).toUpperCase() + status.slice(1);
+const formatStatus = (status: InvoiceStatus) => {
+  if (status === "draft") {
+    return "Waiting for manager approval";
+  }
+
+  if (status === "rejected") {
+    return "Changes requested";
+  }
+
+  return status.charAt(0).toUpperCase() + status.slice(1);
+};
 
 export const InvoiceDetailPage = ({ invoiceId }: { invoiceId: string }) => {
   const user = useAuthStore((state) => state.user);
@@ -19,6 +37,15 @@ export const InvoiceDetailPage = ({ invoiceId }: { invoiceId: string }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
+  const [isRejectConfirmOpen, setIsRejectConfirmOpen] = useState(false);
+  const [isApproveConfirmOpen, setIsApproveConfirmOpen] = useState(false);
+  const [isIssueConfirmOpen, setIsIssueConfirmOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [isEditingDraft, setIsEditingDraft] = useState(false);
+  const [invoiceDate, setInvoiceDate] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [taxAmount, setTaxAmount] = useState("0");
+  const [notes, setNotes] = useState("");
 
   const loadInvoice = async (options?: { preserve?: boolean }) => {
     if (!canAccess) {
@@ -97,6 +124,75 @@ export const InvoiceDetailPage = ({ invoiceId }: { invoiceId: string }) => {
     }
   };
 
+  const beginDraftEdit = () => {
+    if (!invoice) {
+      return;
+    }
+
+    setInvoiceDate(invoice.invoiceDate);
+    setDueDate(invoice.dueDate);
+    setTaxAmount(String(invoice.taxAmount));
+    setNotes(invoice.notes);
+    setIsEditingDraft(true);
+  };
+
+  const handleDraftSave = async () => {
+    setIsUpdating(true);
+
+    try {
+      const result = await updateInvoiceDraftRequest(invoiceId, {
+        invoiceDate,
+        dueDate,
+        taxAmount: Number(taxAmount),
+        notes
+      });
+      setInvoice(result);
+      setIsEditingDraft(false);
+      notify.success("Invoice draft updated and returned for manager review.");
+    } catch (error: unknown) {
+      notify.error(error instanceof Error ? error.message : "Unable to update this invoice draft");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleRejectInvoice = async () => {
+    const reason = rejectionReason.trim();
+
+    if (!reason) {
+      notify.error("Please provide a reason before rejecting the invoice draft.");
+      return;
+    }
+
+    setIsUpdating(true);
+
+    try {
+      const result = await rejectInvoiceRequest(invoiceId, reason);
+      setInvoice(result);
+      setRejectionReason("");
+      setIsRejectConfirmOpen(false);
+      notify.success("Invoice draft rejected and returned to the admin.");
+    } catch (error: unknown) {
+      notify.error(error instanceof Error ? error.message : "Unable to reject this invoice draft");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleApproveInvoice = async () => {
+    const approved = await handleStatusUpdate("reviewed", "Invoice approved for issue.");
+    if (approved) {
+      setIsApproveConfirmOpen(false);
+    }
+  };
+
+  const handleIssueInvoice = async () => {
+    const issued = await handleStatusUpdate("issued", "Invoice issued successfully.");
+    if (issued) {
+      setIsIssueConfirmOpen(false);
+    }
+  };
+
   if (user?.role === "team_member") {
     return <Navigate to="/work-logs" replace />;
   }
@@ -143,8 +239,18 @@ export const InvoiceDetailPage = ({ invoiceId }: { invoiceId: string }) => {
                     Back to invoices
                   </Link>
                   {user?.role === "manager" && invoice.canReview ? (
-                    <Button disabled={isUpdating} onClick={() => void handleStatusUpdate("reviewed", "Invoice approved for issue.")}>
-                      {isUpdating ? "Saving..." : "Approve for issue"}
+                    <>
+                      <Button className="bg-rose-600 hover:bg-rose-700" disabled={isUpdating} onClick={() => setIsRejectConfirmOpen(true)}>
+                        Reject draft
+                      </Button>
+                      <Button disabled={isUpdating} onClick={() => setIsApproveConfirmOpen(true)}>
+                        Approve for issue
+                      </Button>
+                    </>
+                  ) : null}
+                  {user?.role === "admin" && invoice.canEdit ? (
+                    <Button disabled={isUpdating} onClick={beginDraftEdit}>
+                      Edit draft
                     </Button>
                   ) : null}
                   {user?.role === "admin" && invoice.status === "draft" ? (
@@ -157,8 +263,8 @@ export const InvoiceDetailPage = ({ invoiceId }: { invoiceId: string }) => {
                     </Button>
                   ) : null}
                   {user?.role === "admin" && invoice.canIssue ? (
-                    <Button disabled={isUpdating} onClick={() => void handleStatusUpdate("issued", "Invoice issued successfully.")}>
-                      {isUpdating ? "Saving..." : "Issue invoice"}
+                    <Button disabled={isUpdating} onClick={() => setIsIssueConfirmOpen(true)}>
+                      Issue invoice
                     </Button>
                   ) : null}
                   {user?.role === "admin" && invoice.status === "issued" ? (
@@ -185,6 +291,16 @@ export const InvoiceDetailPage = ({ invoiceId }: { invoiceId: string }) => {
                 </div>
               </div>
             </div>
+
+            {invoice.rejectionReason ? (
+              <section className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3" role="alert">
+                <div className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:gap-3">
+                  <p className="shrink-0 text-sm font-semibold text-amber-900">Manager feedback:</p>
+                  <p className="min-w-0 text-sm leading-5 text-amber-800">{invoice.rejectionReason}</p>
+                </div>
+                {invoice.rejectedBy ? <p className="mt-1 text-xs text-amber-700">Requested by {invoice.rejectedBy.name}</p> : null}
+              </section>
+            ) : null}
 
             <div className="grid gap-4 xl:grid-cols-4">
               <MetricCard label="Status" value={formatStatus(invoice.status)} />
@@ -251,13 +367,30 @@ export const InvoiceDetailPage = ({ invoiceId }: { invoiceId: string }) => {
 
                 <section className="rounded-[1.75rem] bg-white p-5 shadow-[0_20px_60px_rgba(11,20,55,0.08)] sm:p-6">
                   <p className="text-sm font-medium text-[#A3AED0]">Workflow detail</p>
-                  <div className="mt-4 space-y-3">
-                    <InfoCard label="Invoice date" value={new Date(invoice.invoiceDate).toLocaleDateString()} />
-                    <InfoCard label="Due date" value={new Date(invoice.dueDate).toLocaleDateString()} />
-                    <InfoCard label="Reviewed by" value={invoice.reviewedBy?.name ?? "Not reviewed yet"} />
-                    <InfoCard label="Issued by" value={invoice.issuedBy?.name ?? "Not issued yet"} />
-                    <InfoCard label="Paid at" value={invoice.paidAt ? new Date(invoice.paidAt).toLocaleString() : "Not paid yet"} />
-                  </div>
+                  {isEditingDraft ? (
+                    <div className="mt-4 space-y-4">
+                      <Input label="Invoice date" type="date" value={invoiceDate} onChange={(event) => setInvoiceDate(event.target.value)} />
+                      <Input label="Due date" type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} />
+                      <Input label="Tax amount" type="number" min="0" step="0.01" value={taxAmount} onChange={(event) => setTaxAmount(event.target.value)} />
+                      <Textarea label="Notes" value={notes} onChange={(event) => setNotes(event.target.value)} />
+                      <div className="flex gap-3">
+                        <Button className="flex-1" disabled={isUpdating} onClick={() => void handleDraftSave()}>
+                          {isUpdating ? "Saving..." : "Save and resubmit"}
+                        </Button>
+                        <button className="rounded-full px-4 text-sm font-semibold text-[#707EAE] hover:bg-[#F4F7FE]" type="button" onClick={() => setIsEditingDraft(false)}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-4 space-y-3">
+                      <InfoCard label="Invoice date" value={new Date(invoice.invoiceDate).toLocaleDateString()} />
+                      <InfoCard label="Due date" value={new Date(invoice.dueDate).toLocaleDateString()} />
+                      <InfoCard label="Reviewed by" value={invoice.reviewedBy?.name ?? "Not reviewed yet"} />
+                      <InfoCard label="Issued by" value={invoice.issuedBy?.name ?? "Not issued yet"} />
+                      <InfoCard label="Paid at" value={invoice.paidAt ? new Date(invoice.paidAt).toLocaleString() : "Not paid yet"} />
+                    </div>
+                  )}
                 </section>
 
                 <section className="rounded-[1.75rem] bg-white p-5 shadow-[0_20px_60px_rgba(11,20,55,0.08)] sm:p-6">
@@ -269,6 +402,32 @@ export const InvoiceDetailPage = ({ invoiceId }: { invoiceId: string }) => {
           </>
         )}
       </section>
+      <ConfirmationModal
+        isOpen={isApproveConfirmOpen}
+        title="Approve invoice draft?"
+        description="This confirms the draft is correct and moves it to the administrator issuing queue."
+        confirmLabel="Approve for issue"
+        isConfirming={isUpdating}
+        onCancel={() => {
+          if (!isUpdating) {
+            setIsApproveConfirmOpen(false);
+          }
+        }}
+        onConfirm={handleApproveInvoice}
+      />
+      <ConfirmationModal
+        isOpen={isIssueConfirmOpen}
+        title="Issue invoice?"
+        description="This will mark the reviewed invoice as issued. Confirm that the invoice is ready to send to the customer."
+        confirmLabel="Issue invoice"
+        isConfirming={isUpdating}
+        onCancel={() => {
+          if (!isUpdating) {
+            setIsIssueConfirmOpen(false);
+          }
+        }}
+        onConfirm={handleIssueInvoice}
+      />
       <ConfirmationModal
         isOpen={isCancelConfirmOpen}
         title="Cancel invoice draft?"
@@ -283,6 +442,23 @@ export const InvoiceDetailPage = ({ invoiceId }: { invoiceId: string }) => {
         }}
         onConfirm={handleCancelDraft}
       />
+      <ConfirmationModal
+        isOpen={isRejectConfirmOpen}
+        title="Reject invoice draft?"
+        description="Provide the changes the administrator needs to make before this invoice can be approved for issue."
+        confirmLabel="Reject draft"
+        tone="danger"
+        isConfirming={isUpdating}
+        isConfirmDisabled={!rejectionReason.trim()}
+        onCancel={() => {
+          if (!isUpdating) {
+            setIsRejectConfirmOpen(false);
+          }
+        }}
+        onConfirm={handleRejectInvoice}
+      >
+        <Textarea label="Reason" placeholder="Explain what needs to be corrected" value={rejectionReason} onChange={(event) => setRejectionReason(event.target.value)} />
+      </ConfirmationModal>
     </AppShell>
   );
 };

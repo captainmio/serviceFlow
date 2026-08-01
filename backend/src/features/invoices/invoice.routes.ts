@@ -7,6 +7,8 @@ import {
   listInvoicesHandler,
   listNotificationsHandler,
   markAllNotificationsReadHandler,
+  rejectInvoiceHandler,
+  updateInvoiceDraftHandler,
   updateInvoiceStatusHandler
 } from "./invoice.controller.js";
 
@@ -19,6 +21,8 @@ invoiceRouter.get("/", listInvoicesHandler);
 invoiceRouter.get("/:invoiceId", getInvoiceDetailHandler);
 invoiceRouter.post("/", requireRoles(["admin"]), createInvoiceDraftHandler);
 invoiceRouter.delete("/:invoiceId", requireRoles(["admin"]), deleteInvoiceDraftHandler);
+invoiceRouter.patch("/:invoiceId/draft", requireRoles(["admin"]), updateInvoiceDraftHandler);
+invoiceRouter.post("/:invoiceId/reject", requireRoles(["manager"]), rejectInvoiceHandler);
 invoiceRouter.patch("/:invoiceId/status", updateInvoiceStatusHandler);
 
 notificationRouter.use(requireAuth);

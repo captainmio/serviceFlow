@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import { Button } from "../../ui/button";
 
 interface ConfirmationModalProps {
@@ -9,6 +10,8 @@ interface ConfirmationModalProps {
   cancelLabel?: string;
   tone?: "danger" | "default";
   isConfirming?: boolean;
+  isConfirmDisabled?: boolean;
+  children?: ReactNode;
   onCancel: () => void;
   onConfirm: () => Promise<void> | void;
 }
@@ -23,6 +26,8 @@ export const ConfirmationModal = ({
   cancelLabel = "Cancel",
   tone = "default",
   isConfirming = false,
+  isConfirmDisabled = false,
+  children,
   onCancel,
   onConfirm
 }: ConfirmationModalProps) => {
@@ -73,6 +78,7 @@ export const ConfirmationModal = ({
       >
         <h2 className="text-xl font-bold text-[#2B3674]">{title}</h2>
         <p className="mt-3 text-sm leading-6 text-[#707EAE]">{description}</p>
+        {children ? <div className="mt-5">{children}</div> : null}
 
         <div className="mt-6 flex justify-end gap-3">
           <button
@@ -85,7 +91,7 @@ export const ConfirmationModal = ({
           <Button
             className={tone === "danger" ? "bg-rose-600 text-white hover:bg-rose-700" : ""}
             type="button"
-            disabled={isConfirming}
+            disabled={isConfirming || isConfirmDisabled}
             onClick={() => void onConfirm()}
           >
             {isConfirming ? "Please wait..." : confirmLabel}

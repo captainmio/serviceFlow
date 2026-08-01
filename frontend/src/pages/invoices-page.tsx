@@ -12,7 +12,33 @@ const formatMonthLabel = (monthStart: string) =>
     year: "numeric"
   });
 
-const formatStatus = (status: InvoiceStatus) => status.charAt(0).toUpperCase() + status.slice(1);
+const formatStatus = (status: InvoiceStatus) => {
+  if (status === "draft") {
+    return "Waiting for manager approval";
+  }
+
+  if (status === "rejected") {
+    return "Changes requested";
+  }
+
+  return status.charAt(0).toUpperCase() + status.slice(1);
+};
+
+const statusBadgeClass = (status: InvoiceStatus) => {
+  if (status === "draft") {
+    return "bg-amber-100 text-amber-800";
+  }
+
+  if (status === "reviewed" || status === "paid") {
+    return "bg-emerald-100 text-emerald-800";
+  }
+
+  if (status === "issued") {
+    return "bg-blue-100 text-blue-800";
+  }
+
+  return "bg-rose-100 text-rose-800";
+};
 
 export const InvoicesPage = () => {
   const user = useAuthStore((state) => state.user);
@@ -20,7 +46,7 @@ export const InvoicesPage = () => {
   const isAdmin = user?.role === "admin";
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const requestedTab = searchParams.get("tab") === "issue" ? "issue" : "ready";
+  const requestedTab = searchParams.get("tab") === "issue" || !isAdmin ? "issue" : "ready";
   const [data, setData] = useState<InvoiceListResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
@@ -81,7 +107,7 @@ export const InvoicesPage = () => {
   const needsReviewCount = data?.invoices.filter((invoice) => invoice.status === "draft").length ?? 0;
   const readyToIssueInvoices = data?.invoices.filter((invoice) => invoice.status === "draft" || invoice.canIssue) ?? [];
   const readyToIssueCount = readyToIssueInvoices.length;
-  const invoiceDrafts = data?.invoices.filter((invoice) => invoice.status === "draft" || invoice.status === "reviewed") ?? [];
+  const invoiceDrafts = data?.invoices.filter((invoice) => invoice.status === "draft" || invoice.status === "rejected" || invoice.status === "reviewed") ?? [];
 
   const toggleEligibleMonth = (entry: InvoiceEligibleMonth) => {
     const key = `${entry.projectId}:${entry.monthStart}`;
@@ -148,18 +174,20 @@ export const InvoicesPage = () => {
         </div>
 
         <div className="flex flex-wrap gap-2 rounded-[1.5rem] bg-white p-2 shadow-[0_20px_60px_rgba(11,20,55,0.08)]" role="tablist" aria-label="Invoice sections">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "ready"}
-            className={`rounded-full px-5 py-3 text-sm font-semibold transition ${
-              activeTab === "ready" ? "bg-[#4318FF] text-white shadow-[0_10px_24px_rgba(67,24,255,0.2)]" : "text-[#707EAE] hover:bg-[#F4F7FE]"
-            }`}
-            onClick={() => setActiveTab("ready")}
-          >
-            Projects ready for invoice draft
-            <span className="ml-2 rounded-full bg-white/20 px-2 py-1 text-xs">{data?.eligibleMonths.length ?? 0}</span>
-          </button>
+          {isAdmin ? (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "ready"}
+              className={`rounded-full px-5 py-3 text-sm font-semibold transition ${
+                activeTab === "ready" ? "bg-[#4318FF] text-white shadow-[0_10px_24px_rgba(67,24,255,0.2)]" : "text-[#707EAE] hover:bg-[#F4F7FE]"
+              }`}
+              onClick={() => setActiveTab("ready")}
+            >
+              Projects ready for invoice draft
+              <span className="ml-2 rounded-full bg-white/20 px-2 py-1 text-xs">{data?.eligibleMonths.length ?? 0}</span>
+            </button>
+          ) : null}
           <button
             type="button"
             role="tab"
@@ -170,7 +198,7 @@ export const InvoicesPage = () => {
             onClick={() => setActiveTab("issue")}
           >
             Invoice drafts and issuing queue
-            <span className="ml-2 rounded-full bg-white/20 px-2 py-1 text-xs">{readyToIssueCount}</span>
+            <span className="ml-2 rounded-full bg-white/20 px-2 py-1 text-xs">{invoiceDrafts.length}</span>
           </button>
         </div>
 
@@ -347,7 +375,7 @@ const InvoiceRow = ({ invoice }: { invoice: InvoiceSummary }) => (
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-3">
-        <span className="rounded-full bg-[#F4F7FE] px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#4318FF]">
+        <span className={`rounded-full px-3 py-1.5 text-xs font-semibold tracking-wide ${statusBadgeClass(invoice.status)}`}>
           {formatStatus(invoice.status)}
         </span>
         <span className="text-sm font-semibold text-[#2B3674]">${invoice.totalAmount.toFixed(2)}</span>
@@ -365,7 +393,7 @@ const InvoiceRow = ({ invoice }: { invoice: InvoiceSummary }) => (
       <div className="rounded-2xl bg-white px-4 py-3">
         <p className="text-xs uppercase tracking-[0.16em] text-[#A3AED0]">Action state</p>
         <p className="mt-2 font-semibold text-[#2B3674]">
-          {invoice.canIssue ? "Ready to issue" : invoice.canReview ? "Needs manager review" : "Read only"}
+          {invoice.canIssue ? "Ready to issue" : invoice.canReview ? "Waiting for manager approval" : "Read only"}
         </p>
       </div>
     </div>

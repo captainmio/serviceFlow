@@ -26,6 +26,7 @@ export interface InvoiceSummaryResponse {
   monthCount: number;
   canReview: boolean;
   canIssue: boolean;
+  canEdit: boolean;
 }
 
 export interface InvoiceItemResponse {
@@ -57,6 +58,10 @@ export interface InvoiceDetailResponse extends InvoiceSummaryResponse {
   sourceMonths: InvoiceSourceMonthResponse[];
   reviewedBy: AuthResponse["user"] | null;
   reviewedAt: string | null;
+  rejectedBy: AuthResponse["user"] | null;
+  rejectedAt: string | null;
+  rejectionReason: string | null;
+  resubmittedAt: string | null;
   issuedBy: AuthResponse["user"] | null;
   issuedAt: string | null;
   paidAt: string | null;

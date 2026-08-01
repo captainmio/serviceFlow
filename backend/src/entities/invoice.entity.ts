@@ -93,6 +93,19 @@ export class Invoice {
   @Column({ type: "datetime", name: "reviewed_at", nullable: true })
   reviewedAt!: Date | null;
 
+  @ManyToOne(() => User, { nullable: true, onDelete: "SET NULL" })
+  @JoinColumn({ name: "rejected_by" })
+  rejectedBy!: User | null;
+
+  @Column({ type: "datetime", name: "rejected_at", nullable: true })
+  rejectedAt!: Date | null;
+
+  @Column({ type: "varchar", length: 2000, name: "rejection_reason", nullable: true })
+  rejectionReason!: string | null;
+
+  @Column({ type: "datetime", name: "resubmitted_at", nullable: true })
+  resubmittedAt!: Date | null;
+
   @Column({ type: "datetime", name: "paid_at", nullable: true })
   paidAt!: Date | null;
 

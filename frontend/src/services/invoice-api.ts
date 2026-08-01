@@ -12,6 +12,13 @@ export interface CreateInvoiceDraftPayload {
   notes: string;
 }
 
+export interface UpdateInvoiceDraftPayload {
+  invoiceDate: string;
+  dueDate: string;
+  taxAmount: number;
+  notes: string;
+}
+
 export const fetchInvoicesRequest = async (): Promise<InvoiceListResponse> => {
   const { data } = await apiClient.get<InvoiceListResponse>("/invoices");
   return data;
@@ -39,4 +46,17 @@ export const updateInvoiceStatusRequest = async (
 
 export const deleteInvoiceDraftRequest = async (invoiceId: string): Promise<void> => {
   await apiClient.delete(`/invoices/${invoiceId}`);
+};
+
+export const rejectInvoiceRequest = async (invoiceId: string, reason: string): Promise<InvoiceDetail> => {
+  const { data } = await apiClient.post<InvoiceDetail>(`/invoices/${invoiceId}/reject`, { reason });
+  return data;
+};
+
+export const updateInvoiceDraftRequest = async (
+  invoiceId: string,
+  payload: UpdateInvoiceDraftPayload
+): Promise<InvoiceDetail> => {
+  const { data } = await apiClient.patch<InvoiceDetail>(`/invoices/${invoiceId}/draft`, payload);
+  return data;
 };

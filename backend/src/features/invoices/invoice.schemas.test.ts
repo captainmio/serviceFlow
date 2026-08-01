@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createInvoiceDraftSchema, updateInvoiceStatusSchema } from "./invoice.schemas.js";
+import { createInvoiceDraftSchema, rejectInvoiceSchema, updateInvoiceDraftSchema, updateInvoiceStatusSchema } from "./invoice.schemas.js";
 
 test("createInvoiceDraftSchema accepts approved source month invoice payload", () => {
   const parsed = createInvoiceDraftSchema.parse({
@@ -33,4 +33,20 @@ test("updateInvoiceStatusSchema allows reviewed status transition requests", () 
   });
 
   assert.equal(parsed.status, "reviewed");
+});
+
+test("rejectInvoiceSchema requires a reason", () => {
+  assert.equal(rejectInvoiceSchema.safeParse({ reason: "" }).success, false);
+  assert.equal(rejectInvoiceSchema.parse({ reason: "Tax amount is incorrect" }).reason, "Tax amount is incorrect");
+});
+
+test("updateInvoiceDraftSchema validates draft changes", () => {
+  const parsed = updateInvoiceDraftSchema.parse({
+    invoiceDate: "2026-07-10",
+    dueDate: "2026-07-24",
+    taxAmount: "15.50",
+    notes: "Updated invoice details"
+  });
+
+  assert.equal(parsed.taxAmount, 15.5);
 });

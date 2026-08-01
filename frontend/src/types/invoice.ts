@@ -1,6 +1,6 @@
 import type { AuthUser } from "./auth";
 
-export type InvoiceStatus = "draft" | "reviewed" | "issued" | "paid" | "cancelled";
+export type InvoiceStatus = "draft" | "rejected" | "reviewed" | "issued" | "paid" | "cancelled";
 
 export interface InvoiceEligibleMonth {
   projectId: string;
@@ -27,6 +27,7 @@ export interface InvoiceSummary {
   monthCount: number;
   canReview: boolean;
   canIssue: boolean;
+  canEdit: boolean;
 }
 
 export interface InvoiceItem {
@@ -58,6 +59,10 @@ export interface InvoiceDetail extends InvoiceSummary {
   sourceMonths: InvoiceSourceMonth[];
   reviewedBy: AuthUser | null;
   reviewedAt: string | null;
+  rejectedBy: AuthUser | null;
+  rejectedAt: string | null;
+  rejectionReason: string | null;
+  resubmittedAt: string | null;
   issuedBy: AuthUser | null;
   issuedAt: string | null;
   paidAt: string | null;

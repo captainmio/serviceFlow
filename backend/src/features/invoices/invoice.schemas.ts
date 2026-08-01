@@ -20,5 +20,18 @@ export const updateInvoiceStatusSchema = z.object({
   status: z.enum(invoiceStatuses)
 });
 
+export const rejectInvoiceSchema = z.object({
+  reason: z.string().trim().min(1, "A rejection reason is required").max(2000)
+});
+
+export const updateInvoiceDraftSchema = z.object({
+  invoiceDate: dateField,
+  dueDate: dateField,
+  taxAmount: z.coerce.number().min(0, "Tax amount cannot be negative"),
+  notes: z.string().trim().max(2000).default("")
+});
+
 export type CreateInvoiceDraftPayload = z.infer<typeof createInvoiceDraftSchema>;
 export type UpdateInvoiceStatusPayload = z.infer<typeof updateInvoiceStatusSchema>;
+export type RejectInvoicePayload = z.infer<typeof rejectInvoiceSchema>;
+export type UpdateInvoiceDraftPayload = z.infer<typeof updateInvoiceDraftSchema>;

@@ -24,6 +24,8 @@ import { AddWorkLogLineReviewState1720591200000 } from "./migrations/17205912000
 import { MakeWorkLogSubmissionsMonthAware1720594800000 } from "./migrations/1720594800000-make-work-log-submissions-month-aware.js";
 import { ClearWorkLogData1720598400000 } from "./migrations/1720598400000-clear-work-log-data.js";
 import { AddInvoiceWorkflow1720602000000 } from "./migrations/1720602000000-add-invoice-workflow.js";
+import { AddInvoiceRejectionWorkflow1720605600000 } from "./migrations/1720605600000-add-invoice-rejection-workflow.js";
+import { AddInvoiceResubmittedAt1720607400000 } from "./migrations/1720607400000-add-invoice-resubmitted-at.js";
 
 export const appDataSource = new DataSource({
   type: "mysql",
@@ -59,6 +61,8 @@ export const appDataSource = new DataSource({
     AddWorkLogLineReviewState1720591200000,
     MakeWorkLogSubmissionsMonthAware1720594800000,
     ClearWorkLogData1720598400000,
-    AddInvoiceWorkflow1720602000000
+    AddInvoiceWorkflow1720602000000,
+    AddInvoiceRejectionWorkflow1720605600000,
+    AddInvoiceResubmittedAt1720607400000
   ]
 });

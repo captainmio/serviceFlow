@@ -15,7 +15,12 @@ import { WorkLogWeekSubmission } from "../../entities/work-log-week-submission.e
 import { isDuplicateEntryError, isMissingTableOrColumnError } from "../../shared/database/typeorm-helpers.js";
 import type { AuthenticatedUser } from "../auth/auth.types.js";
 import { getMonthEnd, getWeekMonthOverlapRange } from "../work-logs/work-log.utils.js";
-import type { CreateInvoiceDraftPayload, UpdateInvoiceStatusPayload } from "./invoice.schemas.js";
+import type {
+  CreateInvoiceDraftPayload,
+  RejectInvoicePayload,
+  UpdateInvoiceDraftPayload,
+  UpdateInvoiceStatusPayload
+} from "./invoice.schemas.js";
 import type {
   InvoiceDetailResponse,
   InvoiceEligibleMonthResponse,
@@ -348,7 +353,8 @@ const loadInvoiceOrThrow = async (invoiceId: string) => {
         workLog: true
       },
       issuedBy: true,
-      reviewedBy: true
+      reviewedBy: true,
+      rejectedBy: true
     }
   });
 
@@ -407,6 +413,10 @@ export const getAllowedInvoiceStatusTransitions = (
     if (currentStatus === "draft") {
       return [];
     }
+
+    if (currentStatus === "rejected") {
+      return [];
+    }
   }
 
   return [];
@@ -424,6 +434,15 @@ export const isInvoiceStatusTransitionAllowed = ({
 
 export const canDeleteInvoiceDraft = (status: InvoiceStatus, role: AuthenticatedUser["role"]) =>
   role === "admin" && status === "draft";
+
+export const canRejectInvoiceDraft = (status: InvoiceStatus, role: AuthenticatedUser["role"]) =>
+  role === "manager" && status === "draft";
+
+export const canEditInvoiceDraft = (
+  status: InvoiceStatus,
+  resubmittedAt: Date | null,
+  role: AuthenticatedUser["role"]
+) => role === "admin" && (status === "draft" || status === "rejected") && resubmittedAt === null;
 
 const toInvoiceSummary = (invoice: Invoice, authUser: AuthenticatedUser): InvoiceSummaryResponse => {
   const uniqueProjectIds = new Set(invoice.items.map((item) => item.job.id));
@@ -451,7 +470,8 @@ const toInvoiceSummary = (invoice: Invoice, authUser: AuthenticatedUser): Invoic
       currentStatus: invoice.status,
       nextStatus: "issued",
       role: authUser.role
-    })
+    }),
+    canEdit: canEditInvoiceDraft(invoice.status, invoice.resubmittedAt, authUser.role)
   };
 };
 
@@ -504,6 +524,10 @@ const toInvoiceDetail = (invoice: Invoice, authUser: AuthenticatedUser): Invoice
     ),
     reviewedBy: invoice.reviewedBy ? toAuthUser(invoice.reviewedBy) : null,
     reviewedAt: invoice.reviewedAt ? invoice.reviewedAt.toISOString() : null,
+    rejectedBy: invoice.rejectedBy ? toAuthUser(invoice.rejectedBy) : null,
+    rejectedAt: invoice.rejectedAt ? invoice.rejectedAt.toISOString() : null,
+    rejectionReason: invoice.rejectionReason,
+    resubmittedAt: invoice.resubmittedAt ? invoice.resubmittedAt.toISOString() : null,
     issuedBy: invoice.issuedBy ? toAuthUser(invoice.issuedBy) : null,
     issuedAt: invoice.issuedAt ? invoice.issuedAt.toISOString() : null,
     paidAt: invoice.paidAt ? invoice.paidAt.toISOString() : null
@@ -735,7 +759,8 @@ export const listInvoices = async (authUser: AuthenticatedUser): Promise<Invoice
           workLog: true
         },
         reviewedBy: true,
-        issuedBy: true
+        issuedBy: true,
+        rejectedBy: true
       },
       order: {
         updatedAt: "DESC"
@@ -919,7 +944,11 @@ export const createInvoiceDraft = async (
         reviewedAt: null,
         issuedBy: null,
         issuedAt: null,
-        paidAt: null
+        paidAt: null,
+        rejectedBy: null,
+        rejectedAt: null,
+        rejectionReason: null,
+        resubmittedAt: null
       });
       const savedInvoice = await invoiceRepository.save(invoice);
       const items = billableWorkLogs.map((workLog) =>
@@ -1000,6 +1029,9 @@ export const updateInvoiceStatus = async (
     if (payload.status === "reviewed") {
       invoice.reviewedBy = actingUser;
       invoice.reviewedAt = new Date();
+      invoice.rejectedBy = null;
+      invoice.rejectedAt = null;
+      invoice.rejectionReason = null;
       await enqueueProcessQueueJob({
         type: "invoice_issue_requested",
         dedupeKey: `invoice_issue_requested:${invoice.id}`,
@@ -1022,6 +1054,87 @@ export const updateInvoiceStatus = async (
     await transactionManager.getRepository(Invoice).save(invoice);
   });
   await processPendingQueueJobs();
+  const loadedInvoice = await loadInvoiceOrThrow(invoice.id);
+  return toInvoiceDetail(loadedInvoice, authUser);
+};
+
+export const rejectInvoice = async (
+  invoiceId: string,
+  payload: RejectInvoicePayload,
+  authUser: AuthenticatedUser
+): Promise<InvoiceDetailResponse> => {
+  ensureManagerOrAdmin(authUser);
+
+  const invoice = await loadInvoiceOrThrow(invoiceId);
+  ensureInvoiceAccess(invoice, authUser);
+
+  if (!canRejectInvoiceDraft(invoice.status, authUser.role)) {
+    throw new InvoiceAccessError("Only managers can reject invoice drafts");
+  }
+
+  const actingUser = await appDataSource.getRepository(User).findOne({ where: { uuid: authUser.id } });
+
+  if (!actingUser) {
+    throw new InvoiceAccessError("Unable to identify the active manager");
+  }
+
+  await appDataSource.transaction(async (transactionManager) => {
+    invoice.status = "rejected";
+    invoice.rejectedBy = actingUser;
+    invoice.rejectedAt = new Date();
+    invoice.rejectionReason = payload.reason;
+    invoice.reviewedBy = null;
+    invoice.reviewedAt = null;
+    invoice.resubmittedAt = null;
+    await transactionManager.getRepository(Invoice).save(invoice);
+  });
+
+  const admins = await appDataSource.getRepository(User).find({
+    where: { role: "admin", active: true, isLoginBlocked: false }
+  });
+
+  for (const admin of admins) {
+    await createNotification({
+      user: admin,
+      type: "invoice_changes_requested",
+      title: "Invoice changes requested",
+      message: `${invoice.invoiceNumber} was rejected: ${payload.reason}`,
+      link: `/invoices/${invoice.id}`
+    });
+  }
+
+  const loadedInvoice = await loadInvoiceOrThrow(invoice.id);
+  return toInvoiceDetail(loadedInvoice, authUser);
+};
+
+export const updateInvoiceDraft = async (
+  invoiceId: string,
+  payload: UpdateInvoiceDraftPayload,
+  authUser: AuthenticatedUser
+): Promise<InvoiceDetailResponse> => {
+  ensureAdmin(authUser);
+  const invoice = await loadInvoiceOrThrow(invoiceId);
+
+  if (!canEditInvoiceDraft(invoice.status, invoice.resubmittedAt, authUser.role)) {
+    throw new InvoiceValidationError("This invoice cannot be edited after it has been resubmitted");
+  }
+
+  if (payload.invoiceDate > payload.dueDate) {
+    throw new InvoiceValidationError("Due date must be on or after the invoice date");
+  }
+
+  invoice.invoiceDate = payload.invoiceDate;
+  invoice.dueDate = payload.dueDate;
+  invoice.taxAmount = roundToTwoDecimals(payload.taxAmount);
+  invoice.totalAmount = roundToTwoDecimals(invoice.subtotal + invoice.taxAmount);
+  invoice.notes = payload.notes;
+  invoice.status = "draft";
+  invoice.rejectedBy = null;
+  invoice.rejectedAt = null;
+  invoice.rejectionReason = null;
+  invoice.resubmittedAt = new Date();
+
+  await appDataSource.getRepository(Invoice).save(invoice);
   const loadedInvoice = await loadInvoiceOrThrow(invoice.id);
   return toInvoiceDetail(loadedInvoice, authUser);
 };

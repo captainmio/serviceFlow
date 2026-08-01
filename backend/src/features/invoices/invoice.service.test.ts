@@ -3,6 +3,8 @@ import test from "node:test";
 import {
   getAllowedInvoiceStatusTransitions,
   canDeleteInvoiceDraft,
+  canEditInvoiceDraft,
+  canRejectInvoiceDraft,
   isInvoiceStatusTransitionAllowed,
   isProjectMonthInvoiceEligible
 } from "./invoice.service.js";
@@ -43,6 +45,19 @@ test("only admins can delete invoice drafts", () => {
     }),
     false
   );
+});
+
+test("only managers can reject invoice drafts awaiting review", () => {
+  assert.equal(canRejectInvoiceDraft("draft", "manager"), true);
+  assert.equal(canRejectInvoiceDraft("draft", "admin"), false);
+  assert.equal(canRejectInvoiceDraft("rejected", "manager"), false);
+});
+
+test("resubmitted invoice drafts cannot be edited again", () => {
+  assert.equal(canEditInvoiceDraft("draft", null, "admin"), true);
+  assert.equal(canEditInvoiceDraft("rejected", null, "admin"), true);
+  assert.equal(canEditInvoiceDraft("draft", new Date(), "admin"), false);
+  assert.equal(canEditInvoiceDraft("reviewed", null, "admin"), false);
 });
 
 test("only approved project months can be used for invoice drafts", () => {
