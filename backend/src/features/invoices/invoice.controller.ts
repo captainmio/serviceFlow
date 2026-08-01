@@ -7,6 +7,7 @@ import {
 } from "../../shared/http/controller-helpers.js";
 import {
   createInvoiceDraft,
+  deleteInvoiceDraft,
   getInvoiceDetail,
   InvoiceAccessError,
   InvoiceNotFoundError,
@@ -96,6 +97,25 @@ export const createInvoiceDraftHandler = async (request: AuthenticatedRequest, r
     }
 
     response.status(500).json({ message: "Unable to create this invoice draft right now" });
+  }
+};
+
+export const deleteInvoiceDraftHandler = async (request: AuthenticatedRequest, response: Response) => {
+  try {
+    const authUser = requireAuthenticatedUser(request, response);
+
+    if (!authUser) {
+      return;
+    }
+
+    await deleteInvoiceDraft(readRouteParam(request.params.invoiceId), authUser);
+    response.status(204).send();
+  } catch (error: unknown) {
+    if (handleInvoiceError(error, response)) {
+      return;
+    }
+
+    response.status(500).json({ message: "Unable to delete this invoice draft right now" });
   }
 };
 

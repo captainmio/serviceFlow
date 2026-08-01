@@ -397,7 +397,7 @@ export const getAllowedInvoiceStatusTransitions = (
 
   if (role === "admin") {
     if (currentStatus === "reviewed") {
-      return ["issued", "cancelled"];
+      return ["issued"];
     }
 
     if (currentStatus === "issued") {
@@ -405,7 +405,7 @@ export const getAllowedInvoiceStatusTransitions = (
     }
 
     if (currentStatus === "draft") {
-      return ["cancelled"];
+      return [];
     }
   }
 
@@ -421,6 +421,9 @@ export const isInvoiceStatusTransitionAllowed = ({
   nextStatus: InvoiceStatus;
   role: AuthenticatedUser["role"];
 }) => getAllowedInvoiceStatusTransitions(currentStatus, role).includes(nextStatus);
+
+export const canDeleteInvoiceDraft = (status: InvoiceStatus, role: AuthenticatedUser["role"]) =>
+  role === "admin" && status === "draft";
 
 const toInvoiceSummary = (invoice: Invoice, authUser: AuthenticatedUser): InvoiceSummaryResponse => {
   const uniqueProjectIds = new Set(invoice.items.map((item) => item.job.id));
@@ -1021,6 +1024,28 @@ export const updateInvoiceStatus = async (
   await processPendingQueueJobs();
   const loadedInvoice = await loadInvoiceOrThrow(invoice.id);
   return toInvoiceDetail(loadedInvoice, authUser);
+};
+
+export const deleteInvoiceDraft = async (invoiceId: string, authUser: AuthenticatedUser): Promise<void> => {
+  ensureAdmin(authUser);
+  const invoice = await loadInvoiceOrThrow(invoiceId);
+
+  if (!canDeleteInvoiceDraft(invoice.status, authUser.role)) {
+    throw new InvoiceValidationError("Only invoice drafts can be deleted");
+  }
+
+  await appDataSource.transaction(async (transactionManager) => {
+    const queueRepository = transactionManager.getRepository(ProcessQueueJob);
+    const queueJobs = await queueRepository.find();
+    const relatedQueueJobs = queueJobs.filter((queueJob) => queueJob.payload.invoiceId === invoice.id);
+
+    if (relatedQueueJobs.length > 0) {
+      await queueRepository.remove(relatedQueueJobs);
+    }
+
+    await transactionManager.getRepository(Notification).delete({ link: `/invoices/${invoice.id}` });
+    await transactionManager.getRepository(Invoice).remove(invoice);
+  });
 };
 
 const toNotificationResponse = (notification: Notification): NotificationResponse => ({

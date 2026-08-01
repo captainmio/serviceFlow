@@ -36,3 +36,7 @@ export const updateInvoiceStatusRequest = async (
   const { data } = await apiClient.patch<InvoiceDetail>(`/invoices/${invoiceId}/status`, { status });
   return data;
 };
+
+export const deleteInvoiceDraftRequest = async (invoiceId: string): Promise<void> => {
+  await apiClient.delete(`/invoices/${invoiceId}`);
+};

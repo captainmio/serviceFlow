@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link, Navigate, useLocation } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AppShell } from "../components/features/layout/app-shell";
+import { ConfirmationModal } from "../components/features/shared/confirmation-modal";
 import { Button } from "../components/ui/button";
 import { notify } from "../lib/notify";
-import { fetchInvoiceDetailRequest, updateInvoiceStatusRequest } from "../services/invoice-api";
+import { deleteInvoiceDraftRequest, fetchInvoiceDetailRequest, updateInvoiceStatusRequest } from "../services/invoice-api";
 import { useAuthStore } from "../stores/auth-store";
 import type { InvoiceDetail, InvoiceStatus } from "../types/invoice";
 
@@ -13,9 +14,11 @@ export const InvoiceDetailPage = ({ invoiceId }: { invoiceId: string }) => {
   const user = useAuthStore((state) => state.user);
   const canAccess = user?.role === "admin" || user?.role === "manager";
   const location = useLocation();
+  const navigate = useNavigate();
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
 
   const loadInvoice = async (options?: { preserve?: boolean }) => {
     if (!canAccess) {
@@ -63,15 +66,32 @@ export const InvoiceDetailPage = ({ invoiceId }: { invoiceId: string }) => {
     };
   }, [canAccess, invoiceId, location.search]);
 
-  const handleStatusUpdate = async (status: InvoiceStatus, successMessage: string) => {
+  const handleStatusUpdate = async (status: InvoiceStatus, successMessage: string): Promise<boolean> => {
     setIsUpdating(true);
 
     try {
       const result = await updateInvoiceStatusRequest(invoiceId, status);
       setInvoice(result);
       notify.success(successMessage);
+      return true;
     } catch (error: unknown) {
       notify.error(error instanceof Error ? error.message : "Unable to update invoice status");
+      return false;
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleCancelDraft = async () => {
+    setIsUpdating(true);
+
+    try {
+      await deleteInvoiceDraftRequest(invoiceId);
+      setIsCancelConfirmOpen(false);
+      notify.success("Invoice draft deleted successfully.");
+      navigate("/invoices");
+    } catch (error: unknown) {
+      notify.error(error instanceof Error ? error.message : "Unable to delete this invoice draft");
     } finally {
       setIsUpdating(false);
     }
@@ -117,7 +137,7 @@ export const InvoiceDetailPage = ({ invoiceId }: { invoiceId: string }) => {
 
                 <div className="flex w-full flex-col gap-3 sm:flex-row xl:w-auto">
                   <Link
-                    to="/invoices"
+                    to={`/invoices${location.search ? location.search : ""}`}
                     className="inline-flex h-11 items-center justify-center rounded-full bg-[#F4F7FE] px-5 text-sm font-semibold text-[#4318FF] transition hover:bg-[#E8EEFF]"
                   >
                     Back to invoices
@@ -125,6 +145,15 @@ export const InvoiceDetailPage = ({ invoiceId }: { invoiceId: string }) => {
                   {user?.role === "manager" && invoice.canReview ? (
                     <Button disabled={isUpdating} onClick={() => void handleStatusUpdate("reviewed", "Invoice approved for issue.")}>
                       {isUpdating ? "Saving..." : "Approve for issue"}
+                    </Button>
+                  ) : null}
+                  {user?.role === "admin" && invoice.status === "draft" ? (
+                    <Button
+                      className="bg-rose-600 hover:bg-rose-700"
+                      disabled={isUpdating}
+                      onClick={() => setIsCancelConfirmOpen(true)}
+                    >
+                      Cancel draft
                     </Button>
                   ) : null}
                   {user?.role === "admin" && invoice.canIssue ? (
@@ -240,6 +269,20 @@ export const InvoiceDetailPage = ({ invoiceId }: { invoiceId: string }) => {
           </>
         )}
       </section>
+      <ConfirmationModal
+        isOpen={isCancelConfirmOpen}
+        title="Cancel invoice draft?"
+        description="This permanently deletes the draft and releases its project work logs so they can be invoiced again."
+        confirmLabel="Delete draft"
+        tone="danger"
+        isConfirming={isUpdating}
+        onCancel={() => {
+          if (!isUpdating) {
+            setIsCancelConfirmOpen(false);
+          }
+        }}
+        onConfirm={handleCancelDraft}
+      />
     </AppShell>
   );
 };

@@ -7,6 +7,7 @@ import { ProjectsPage } from "./pages/projects-page";
 import { InvoiceDetailPage } from "./pages/invoice-detail-page";
 import { InvoicePrintPage } from "./pages/invoice-print-page";
 import { InvoicesPage } from "./pages/invoices-page";
+import { InvoiceDraftFormPage } from "./pages/invoice-draft-form-page";
 import { TeamMemberFormPage } from "./pages/team-member-form-page";
 import { TeamMembersPage } from "./pages/team-members-page";
 import { CustomersPage } from "./pages/customers-page";
@@ -84,6 +85,14 @@ export const App = () => {
         element={
           <ProtectedRoute>
             <InvoicesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/invoices/new"
+        element={
+          <ProtectedRoute>
+            <InvoiceDraftFormPage />
           </ProtectedRoute>
         }
       />

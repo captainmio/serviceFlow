@@ -2,6 +2,7 @@ import { Router } from "express";
 import { requireAuth, requireRoles } from "../auth/auth.middleware.js";
 import {
   createInvoiceDraftHandler,
+  deleteInvoiceDraftHandler,
   getInvoiceDetailHandler,
   listInvoicesHandler,
   listNotificationsHandler,
@@ -17,6 +18,7 @@ invoiceRouter.use(requireRoles(["admin", "manager"]));
 invoiceRouter.get("/", listInvoicesHandler);
 invoiceRouter.get("/:invoiceId", getInvoiceDetailHandler);
 invoiceRouter.post("/", requireRoles(["admin"]), createInvoiceDraftHandler);
+invoiceRouter.delete("/:invoiceId", requireRoles(["admin"]), deleteInvoiceDraftHandler);
 invoiceRouter.patch("/:invoiceId/status", updateInvoiceStatusHandler);
 
 notificationRouter.use(requireAuth);
