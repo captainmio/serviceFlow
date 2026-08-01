@@ -28,7 +28,7 @@ export const jobPayloadSchema = z
     rejectionReason: z.string().trim().max(2000).nullable().optional()
   })
   .superRefine((value, context) => {
-    const requiresDates = value.status !== "draft" && value.status !== "assigned";
+    const requiresDates = value.status !== "not_started";
 
     if (requiresDates && !value.startDate) {
       context.addIssue({
@@ -43,14 +43,6 @@ export const jobPayloadSchema = z
         code: z.ZodIssueCode.custom,
         message: "Due date must be on or after the start date",
         path: ["dueDate"]
-      });
-    }
-
-    if (value.status === "rejected" && !value.rejectionReason?.trim()) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Provide a rejection reason when a job is rejected",
-        path: ["rejectionReason"]
       });
     }
 

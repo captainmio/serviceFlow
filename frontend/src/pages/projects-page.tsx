@@ -15,14 +15,10 @@ import type { Project, ProjectStatus } from "../types/project";
 
 const projectStatusOptions: Array<{ value: ProjectStatus | "all"; label: string }> = [
   { value: "all", label: "All statuses" },
-  { value: "draft", label: "Draft" },
-  { value: "assigned", label: "Assigned" },
+  { value: "not_started", label: "Not started" },
   { value: "in_progress", label: "In Progress" },
-  { value: "submitted", label: "Submitted" },
-  { value: "approved", label: "Approved" },
-  { value: "rejected", label: "Rejected" },
-  { value: "invoiced", label: "Invoiced" },
-  { value: "paid", label: "Paid" },
+  { value: "on_hold", label: "On hold" },
+  { value: "completed", label: "Completed" },
   { value: "cancelled", label: "Cancelled" }
 ];
 

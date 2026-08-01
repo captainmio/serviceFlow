@@ -198,30 +198,6 @@ const ensureJobAccess = (job: Job, authUser: AuthenticatedUser) => {
   }
 };
 
-const applyApprovalState = async (
-  job: Job,
-  payload: JobPayload,
-  authUser: AuthenticatedUser
-) => {
-  if (payload.status === "approved" || payload.status === "rejected") {
-    const userRepository = appDataSource.getRepository(User);
-    const actingUser = await userRepository.findOne({ where: { uuid: authUser.id } });
-
-    if (!actingUser) {
-      throw new JobDependencyError("Unable to identify the acting user for approval");
-    }
-
-    job.approvedBy = actingUser;
-    job.approvedAt = new Date();
-  } else {
-    job.approvedBy = null;
-    job.approvedAt = null;
-  }
-
-  job.rejectionReason =
-    payload.status === "rejected" ? payload.rejectionReason?.trim() ?? null : null;
-};
-
 export const listJobs = async (
   { search, status, customerId }: JobListQuery,
   authUser: AuthenticatedUser
@@ -311,8 +287,6 @@ export const createJob = async (
     dueDate: payload.dueDate
   });
 
-  await applyApprovalState(job, payload, authUser);
-
   const savedJob = await jobRepository.save(job);
   const jobWithRelations = await jobRepository.findOneOrFail({
     where: { id: savedJob.id },
@@ -373,8 +347,6 @@ export const updateJob = async (
   job.status = payload.status;
   job.startDate = payload.startDate;
   job.dueDate = payload.dueDate;
-
-  await applyApprovalState(job, payload, authUser);
 
   const savedJob = await jobRepository.save(job);
   const jobWithRelations = await jobRepository.findOneOrFail({

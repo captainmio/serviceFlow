@@ -4,6 +4,10 @@ export class AddWorkLogWeekSubmissions1720587600000 implements MigrationInterfac
   name = "AddWorkLogWeekSubmissions1720587600000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    await this.safeUp(queryRunner);
+  }
+
+  public async safeUp(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       CREATE TABLE \`work_log_week_submissions\` (
         \`id\` varchar(36) NOT NULL,
@@ -32,10 +36,13 @@ export class AddWorkLogWeekSubmissions1720587600000 implements MigrationInterfac
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await this.safeDown(queryRunner);
+  }
+
+  public async safeDown(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query("ALTER TABLE `work_log_week_submissions` DROP FOREIGN KEY `FK_work_log_week_submissions_user_id`");
     await queryRunner.query("ALTER TABLE `work_log_week_submissions` DROP FOREIGN KEY `FK_work_log_week_submissions_job_id`");
     await queryRunner.query("DROP INDEX `UQ_work_log_week_submissions_job_user_week` ON `work_log_week_submissions`");
     await queryRunner.query("DROP TABLE `work_log_week_submissions`");
   }
 }
-

@@ -43,7 +43,7 @@ interface UpdateTargetContext {
   project: Job;
 }
 
-const blockedProjectStatuses = new Set(["approved", "invoiced", "paid", "cancelled"]);
+const blockedProjectStatuses = new Set(["completed", "cancelled"]);
 
 const ensureMonthAwareSubmissionSchema = (error: unknown) => {
   if (isMissingTableOrColumnError(error)) {
@@ -281,7 +281,7 @@ const ensureVisibleWorkLog = (workLog: WorkLog, authUser: AuthenticatedUser) => 
 const ensureProjectIsOpenForWorkLogs = async (project: Job, monthStart: string) => {
   if (blockedProjectStatuses.has(project.status)) {
     throw new WorkLogValidationError(
-      "Work logs cannot be changed once the project is approved, invoiced, paid, or cancelled"
+      "Work logs cannot be changed once the project is completed or cancelled"
     );
   }
 

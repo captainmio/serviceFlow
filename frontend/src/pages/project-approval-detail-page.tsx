@@ -64,6 +64,7 @@ export const ProjectApprovalDetailPage = ({ projectId }: ProjectApprovalDetailPa
   const [isFinalizing, setIsFinalizing] = useState(false);
   const [expandedWeeks, setExpandedWeeks] = useState<string[]>([]);
   const canAccess = user?.role === "admin" || user?.role === "manager";
+  const canSubmit = user?.role === "manager";
   const selectedMonthStart = `${selectedMonthInput}-01`;
 
   const loadDetail = async (options?: { preserveContent?: boolean }) => {
@@ -156,6 +157,10 @@ export const ProjectApprovalDetailPage = ({ projectId }: ProjectApprovalDetailPa
   };
 
   const handleApprove = async (line: ProjectApprovalLine) => {
+    if (!canSubmit) {
+      return;
+    }
+
     setSavingLineId(line.id);
 
     try {
@@ -172,6 +177,10 @@ export const ProjectApprovalDetailPage = ({ projectId }: ProjectApprovalDetailPa
   };
 
   const handleClearReview = async (line: ProjectApprovalLine) => {
+    if (!canSubmit) {
+      return;
+    }
+
     setSavingLineId(line.id);
 
     try {
@@ -188,7 +197,7 @@ export const ProjectApprovalDetailPage = ({ projectId }: ProjectApprovalDetailPa
   };
 
   const handleReject = async () => {
-    if (!rejectingLine) {
+    if (!canSubmit || !rejectingLine) {
       return;
     }
 
@@ -215,7 +224,7 @@ export const ProjectApprovalDetailPage = ({ projectId }: ProjectApprovalDetailPa
   };
 
   const handleFinalize = async () => {
-    if (!detail) {
+    if (!canSubmit || !detail) {
       return;
     }
 
@@ -278,13 +287,19 @@ export const ProjectApprovalDetailPage = ({ projectId }: ProjectApprovalDetailPa
                       >
                         Back to approvals
                       </Link>
-                      <Button
-                        className="w-full sm:flex-1 xl:w-auto xl:flex-none"
-                        disabled={(detail.monthStatus === "approved" && detail.incompleteMembers.length === 0) || isFinalizing}
-                        onClick={handleFinalize}
-                      >
-                        {isFinalizing ? "Submitting..." : "Submit Month Approval"}
-                      </Button>
+                      {canSubmit ? (
+                        <Button
+                          className="w-full sm:flex-1 xl:w-auto xl:flex-none"
+                          disabled={(detail.monthStatus === "approved" && detail.incompleteMembers.length === 0) || isFinalizing}
+                          onClick={handleFinalize}
+                        >
+                          {isFinalizing ? "Submitting..." : "Submit Month Approval"}
+                        </Button>
+                      ) : (
+                        <span className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-[#F8FAFF] px-5 text-sm font-semibold text-[#A3AED0] sm:flex-1 xl:w-auto xl:flex-none">
+                          View only
+                        </span>
+                      )}
                     </div>
 
                     <div className="order-2 w-full xl:order-1 xl:w-auto xl:min-w-[220px]">
@@ -406,7 +421,7 @@ export const ProjectApprovalDetailPage = ({ projectId }: ProjectApprovalDetailPa
                                                     name={`review-${line.id}`}
                                                     className="h-4 w-4 accent-slate-500"
                                                     checked={line.reviewStatus === "pending"}
-                                                    disabled={Boolean(savingLineId) || detail.monthStatus === "approved"}
+                                                    disabled={!canSubmit || Boolean(savingLineId) || detail.monthStatus === "approved"}
                                                     onChange={() => {
                                                       void handleClearReview(line);
                                                     }}
@@ -419,7 +434,7 @@ export const ProjectApprovalDetailPage = ({ projectId }: ProjectApprovalDetailPa
                                                     name={`review-${line.id}`}
                                                     className="h-4 w-4 accent-emerald-600"
                                                     checked={line.reviewStatus === "approved"}
-                                                    disabled={Boolean(savingLineId) || detail.monthStatus === "approved"}
+                                                    disabled={!canSubmit || Boolean(savingLineId) || detail.monthStatus === "approved"}
                                                     onChange={() => {
                                                       void handleApprove(line);
                                                     }}
@@ -432,7 +447,7 @@ export const ProjectApprovalDetailPage = ({ projectId }: ProjectApprovalDetailPa
                                                     name={`review-${line.id}`}
                                                     className="h-4 w-4 accent-rose-600"
                                                     checked={line.reviewStatus === "rejected"}
-                                                    disabled={Boolean(savingLineId) || detail.monthStatus === "approved"}
+                                                    disabled={!canSubmit || Boolean(savingLineId) || detail.monthStatus === "approved"}
                                                     onChange={() => {
                                                       setRejectingLine(line);
                                                       setRejectionReason(line.rejectionReason ?? "");

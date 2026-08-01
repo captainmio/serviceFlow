@@ -291,17 +291,24 @@ export const filterRevenueEligibleWorkLogs = <
   workLogs: TLine[],
   submittedLookup: Set<string>
 ) =>
-  workLogs.filter(
-    (workLog) =>
-      workLog.reviewStatus === "approved" &&
-      submittedLookup.has(
-        buildWorkLogSubmissionKey({
-          projectId: workLog.job.id,
-          userId: workLog.user.uuid,
-          weekStart: getWeekStart(workLog.workDate),
-          monthStart: getMonthStart(workLog.workDate)
-        })
-      )
+  filterSubmittedWorkLogs(workLogs, submittedLookup).filter((workLog) => workLog.reviewStatus === "approved");
+
+export const filterSubmittedWorkLogs = <
+  TLine extends {
+    job: { id: string };
+    user: { uuid: string };
+    workDate: string;
+  }
+>(workLogs: TLine[], submittedLookup: Set<string>) =>
+  workLogs.filter((workLog) =>
+    submittedLookup.has(
+      buildWorkLogSubmissionKey({
+        projectId: workLog.job.id,
+        userId: workLog.user.uuid,
+        weekStart: getWeekStart(workLog.workDate),
+        monthStart: getMonthStart(workLog.workDate)
+      })
+    )
   );
 
 export const computeCanFinalize = ({
@@ -326,6 +333,18 @@ export const computeQueueResolved = ({
   periodStatus === "approved" &&
   memberStates.every((memberState) => memberState.missingWeekStarts.length === 0) &&
   lineItems.length > 0;
+
+export const filterApprovalQueueEntries = <TEntry extends { summary: { lineItemCount: number } }>(
+  entries: TEntry[]
+) => entries.filter((entry) => entry.summary.lineItemCount > 0);
+
+export const canMutateProjectApproval = (role: AuthenticatedUser["role"]) => role === "manager";
+
+const ensureProjectApprovalMutationAccess = (authUser: AuthenticatedUser) => {
+  if (!canMutateProjectApproval(authUser.role)) {
+    throw new WorkLogAccessError("Only managers can submit project approvals");
+  }
+};
 
 export const listProjectApprovals = async (
   query: ProjectApprovalListQuery,
@@ -368,11 +387,15 @@ export const listProjectApprovals = async (
   const summariesWithResolution = await Promise.all(
     projects.map(async (project) => {
       const projectMonthWorkLogs = monthWorkLogs.filter((workLog) => workLog.job.id === project.id);
+      const submittedWorkLogs = filterSubmittedWorkLogs(
+        projectMonthWorkLogs,
+        await buildSubmittedWorkLogLookup(projectMonthWorkLogs)
+      );
       const memberStates = await buildMissingWeeksByMember(project, query.monthStart);
       const readyMembers = memberStates.filter((memberState) => memberState.missingWeekStarts.length === 0);
       const period = monthPeriods.find((currentPeriod) => currentPeriod.job.id === project.id);
       const submittedWeekCount = new Set(
-        projectMonthWorkLogs
+        submittedWorkLogs
           .filter((workLog) => workLog.user.uuid)
           .map((workLog) => `${workLog.user.uuid}:${getWeekStart(workLog.workDate)}`)
       ).size;
@@ -386,12 +409,12 @@ export const listProjectApprovals = async (
         incompleteMemberCount: memberStates.filter((memberState) => memberState.missingWeekStarts.length > 0).length,
         submittedWeekCount,
         totalLoggedRevenue: Number(
-          projectMonthWorkLogs.reduce((sum, workLog) => sum + workLog.lineTotal, 0).toFixed(2)
+          submittedWorkLogs.reduce((sum, workLog) => sum + workLog.lineTotal, 0).toFixed(2)
         ),
-        lineItemCount: projectMonthWorkLogs.length,
+        lineItemCount: submittedWorkLogs.length,
         monthStatus: period?.status ?? "pending",
         canFinalize: computeCanFinalize({
-          lineItems: projectMonthWorkLogs,
+          lineItems: submittedWorkLogs,
           periodStatus: period?.status ?? "pending"
         })
       } satisfies ProjectApprovalSummaryResponse;
@@ -407,7 +430,9 @@ export const listProjectApprovals = async (
     })
   );
 
-  return summariesWithResolution.filter((entry) => !entry.isResolved).map((entry) => entry.summary);
+  return filterApprovalQueueEntries(
+    summariesWithResolution.filter((entry) => !entry.isResolved)
+  ).map((entry) => entry.summary);
 };
 
 export const getProjectApprovalDetail = async (
@@ -459,13 +484,14 @@ export const getProjectApprovalDetail = async (
     buildMissingWeeksByMember(project, monthStart)
   ]);
 
-  const revenueEligibleWorkLogs = filterRevenueEligibleWorkLogs(
-    workLogs,
-    await buildSubmittedWorkLogLookup(workLogs)
-  );
+  const submittedWorkLogLookup = await buildSubmittedWorkLogLookup(workLogs);
+  const submittedWorkLogs = filterSubmittedWorkLogs(workLogs, submittedWorkLogLookup);
+  const revenueEligibleWorkLogs = filterRevenueEligibleWorkLogs(submittedWorkLogs, submittedWorkLogLookup);
+  const projectRevenueLookup = await buildSubmittedWorkLogLookup(projectRevenueRows);
+  const submittedProjectRevenueRows = filterSubmittedWorkLogs(projectRevenueRows, projectRevenueLookup);
   const revenueEligibleProjectWorkLogs = filterRevenueEligibleWorkLogs(
-    projectRevenueRows,
-    await buildSubmittedWorkLogLookup(projectRevenueRows)
+    submittedProjectRevenueRows,
+    projectRevenueLookup
   );
 
   const readyMembers = memberStates
@@ -487,7 +513,7 @@ export const getProjectApprovalDetail = async (
     monthStatus: period?.status ?? "pending",
     reviewedBy: period?.reviewedBy ? toAuthUser(period.reviewedBy) : null,
     reviewedAt: period?.reviewedAt ? period.reviewedAt.toISOString() : null,
-    workLogs: workLogs.map(toProjectApprovalLine),
+    workLogs: submittedWorkLogs.map(toProjectApprovalLine),
     incompleteMembers,
     readyMembers,
     weeklyRevenue: summarizeWeeklyRevenue(
@@ -501,7 +527,7 @@ export const getProjectApprovalDetail = async (
       revenueEligibleProjectWorkLogs.reduce((sum, workLog) => sum + workLog.lineTotal, 0).toFixed(2)
     ),
     canFinalize: computeCanFinalize({
-      lineItems: workLogs,
+      lineItems: submittedWorkLogs,
       periodStatus: period?.status ?? "pending"
     })
   };
@@ -512,9 +538,7 @@ export const reviewProjectApprovalLine = async (
   payload: WorkLogLineReviewPayload,
   authUser: AuthenticatedUser
 ): Promise<ProjectApprovalLineResponse> => {
-  if (authUser.role !== "admin" && authUser.role !== "manager") {
-    throw new WorkLogAccessError("Only admins and managers can review work log lines");
-  }
+  ensureProjectApprovalMutationAccess(authUser);
 
   const repository = appDataSource.getRepository(WorkLog);
   const workLog = await repository.findOne({
@@ -569,9 +593,7 @@ export const finalizeProjectApprovalMonth = async (
   payload: FinalizeProjectApprovalPayload,
   authUser: AuthenticatedUser
 ): Promise<ProjectApprovalDetailResponse> => {
-  if (authUser.role !== "admin" && authUser.role !== "manager") {
-    throw new WorkLogAccessError("Only admins and managers can finalize project approval months");
-  }
+  ensureProjectApprovalMutationAccess(authUser);
 
   const project = await loadProjectOrThrow(projectId);
   ensureApprovalAccessToProject(project, authUser);

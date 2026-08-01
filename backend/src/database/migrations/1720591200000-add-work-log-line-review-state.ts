@@ -4,6 +4,10 @@ export class AddWorkLogLineReviewState1720591200000 implements MigrationInterfac
   name = "AddWorkLogLineReviewState1720591200000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    await this.safeUp(queryRunner);
+  }
+
+  public async safeUp(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       ALTER TABLE \`work_logs\`
       ADD \`review_status\` enum ('pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
@@ -20,6 +24,10 @@ export class AddWorkLogLineReviewState1720591200000 implements MigrationInterfac
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await this.safeDown(queryRunner);
+  }
+
+  public async safeDown(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query("ALTER TABLE `work_logs` DROP FOREIGN KEY `FK_work_logs_reviewed_by`");
     await queryRunner.query(`
       ALTER TABLE \`work_logs\`

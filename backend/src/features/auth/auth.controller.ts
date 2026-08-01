@@ -26,14 +26,22 @@ const buildCookieOptions = (maxAge: number): CookieOptions => ({
   maxAge
 });
 
+const buildClearCookieOptions = (): CookieOptions => ({
+  httpOnly: true,
+  sameSite: "lax",
+  secure: env.NODE_ENV === "production",
+  path: "/"
+});
+
 const writeAuthCookies = (response: Response, accessToken: string, refreshToken: string) => {
   response.cookie(ACCESS_TOKEN_COOKIE_NAME, accessToken, buildCookieOptions(ACCESS_TOKEN_MAX_AGE_MS));
   response.cookie(REFRESH_TOKEN_COOKIE_NAME, refreshToken, buildCookieOptions(REFRESH_TOKEN_MAX_AGE_MS));
 };
 
 const clearAuthCookies = (response: Response) => {
-  response.clearCookie(ACCESS_TOKEN_COOKIE_NAME, buildCookieOptions(ACCESS_TOKEN_MAX_AGE_MS));
-  response.clearCookie(REFRESH_TOKEN_COOKIE_NAME, buildCookieOptions(REFRESH_TOKEN_MAX_AGE_MS));
+  const cookieOptions = buildClearCookieOptions();
+  response.clearCookie(ACCESS_TOKEN_COOKIE_NAME, cookieOptions);
+  response.clearCookie(REFRESH_TOKEN_COOKIE_NAME, cookieOptions);
 };
 
 export const loginHandler = async (request: Request, response: Response) => {

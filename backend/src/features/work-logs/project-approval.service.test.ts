@@ -3,7 +3,10 @@ import test from "node:test";
 import {
   computeCanFinalize,
   computeQueueResolved,
-  filterRevenueEligibleWorkLogs
+  canMutateProjectApproval,
+  filterApprovalQueueEntries,
+  filterRevenueEligibleWorkLogs,
+  filterSubmittedWorkLogs
 } from "./project-approval.service.js";
 
 const createLine = (reviewStatus: "pending" | "approved" | "rejected") =>
@@ -81,4 +84,41 @@ test("filterRevenueEligibleWorkLogs keeps only submitted approved lines", () => 
   assert.equal(eligible.length, 1);
   assert.equal(eligible[0]?.user.uuid, "user-1");
   assert.equal(eligible[0]?.reviewStatus, "approved");
+});
+
+test("filterSubmittedWorkLogs hides entries from unsubmitted weeks", () => {
+  const submitted = filterSubmittedWorkLogs(
+    [
+      {
+        job: { id: "project-1" },
+        user: { uuid: "user-1" },
+        workDate: "2026-07-07"
+      },
+      {
+        job: { id: "project-1" },
+        user: { uuid: "user-1" },
+        workDate: "2026-07-14"
+      }
+    ],
+    new Set(["project-1:user-1:2026-07-06:2026-07-01"])
+  );
+
+  assert.equal(submitted.length, 1);
+  assert.equal(submitted[0]?.workDate, "2026-07-07");
+});
+
+test("filterApprovalQueueEntries hides projects with no submitted work logs", () => {
+  const visibleEntries = filterApprovalQueueEntries([
+    { summary: { lineItemCount: 0 } },
+    { summary: { lineItemCount: 2 } }
+  ]);
+
+  assert.equal(visibleEntries.length, 1);
+  assert.equal(visibleEntries[0]?.summary.lineItemCount, 2);
+});
+
+test("only managers can mutate project approvals", () => {
+  assert.equal(canMutateProjectApproval("manager"), true);
+  assert.equal(canMutateProjectApproval("admin"), false);
+  assert.equal(canMutateProjectApproval("team_member"), false);
 });

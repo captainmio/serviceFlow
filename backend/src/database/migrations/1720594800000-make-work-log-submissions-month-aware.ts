@@ -15,6 +15,10 @@ export class MakeWorkLogSubmissionsMonthAware1720594800000 implements MigrationI
   }
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    await this.safeUp(queryRunner);
+  }
+
+  public async safeUp(queryRunner: QueryRunner): Promise<void> {
     const hasSubmissionTable = await queryRunner.hasTable(this.tableName);
 
     if (!hasSubmissionTable) {
@@ -78,6 +82,10 @@ export class MakeWorkLogSubmissionsMonthAware1720594800000 implements MigrationI
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await this.safeDown(queryRunner);
+  }
+
+  public async safeDown(queryRunner: QueryRunner): Promise<void> {
     const hasSubmissionTable = await queryRunner.hasTable(this.tableName);
 
     if (!hasSubmissionTable) {

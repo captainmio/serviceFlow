@@ -26,14 +26,10 @@ import type { Service } from "../types/service";
 import type { UserOption } from "../types/user";
 
 const projectStatusOptions: Array<{ value: ProjectStatus; label: string }> = [
-  { value: "draft", label: "Draft" },
-  { value: "assigned", label: "Assigned" },
+  { value: "not_started", label: "Not started" },
   { value: "in_progress", label: "In Progress" },
-  { value: "submitted", label: "Submitted" },
-  { value: "approved", label: "Approved" },
-  { value: "rejected", label: "Rejected" },
-  { value: "invoiced", label: "Invoiced" },
-  { value: "paid", label: "Paid" },
+  { value: "on_hold", label: "On hold" },
+  { value: "completed", label: "Completed" },
   { value: "cancelled", label: "Cancelled" }
 ];
 
@@ -50,23 +46,12 @@ const projectFormSchema = z
         assignedToIds: z.array(z.string()).min(1, "Assign at least one user to this service")
       })
     ).min(1, "Add at least one service to the project"),
-    status: z.enum([
-      "draft",
-      "assigned",
-      "in_progress",
-      "submitted",
-      "approved",
-      "rejected",
-      "invoiced",
-      "paid",
-      "cancelled"
-    ]),
+    status: z.enum(["not_started", "in_progress", "on_hold", "completed", "cancelled"]),
     startDate: z.string().optional(),
     dueDate: z.string().optional(),
-    rejectionReason: z.string().optional()
   })
   .superRefine((value, context) => {
-    const requiresDates = value.status !== "draft" && value.status !== "assigned";
+    const requiresDates = value.status !== "not_started";
 
     if (requiresDates && !value.startDate) {
       context.addIssue({
@@ -81,14 +66,6 @@ const projectFormSchema = z
         code: z.ZodIssueCode.custom,
         message: "Due date must be on or after the start date",
         path: ["dueDate"]
-      });
-    }
-
-    if (value.status === "rejected" && !value.rejectionReason?.trim()) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Provide a rejection reason when the project is rejected",
-        path: ["rejectionReason"]
       });
     }
 
@@ -115,10 +92,9 @@ const emptyValues: ProjectFormValues = {
   title: "",
   description: "",
   serviceAssignments: [],
-  status: "draft",
+  status: "not_started",
   startDate: "",
   dueDate: "",
-  rejectionReason: ""
 };
 
 const formatDateTime = (value: string | null) =>
@@ -137,7 +113,6 @@ const toProjectFormValues = (project: Project): ProjectFormValues => ({
   status: project.status,
   startDate: project.startDate ?? "",
   dueDate: project.dueDate ?? "",
-  rejectionReason: project.rejectionReason ?? ""
 });
 
 export const ProjectFormPage = () => {
@@ -170,15 +145,7 @@ export const ProjectFormPage = () => {
 
   const selectedStatus = watch("status");
   const serviceAssignments = watch("serviceAssignments");
-  const shouldShowApprovalFields = selectedStatus === "approved";
-  const shouldShowRejectionReason = selectedStatus === "rejected";
-  const areDatesOptional = selectedStatus === "draft" || selectedStatus === "assigned";
-
-  useEffect(() => {
-    if (!shouldShowRejectionReason) {
-      setValue("rejectionReason", "", { shouldValidate: true, shouldDirty: true });
-    }
-  }, [setValue, shouldShowRejectionReason]);
+  const areDatesOptional = selectedStatus === "not_started";
 
   useEffect(() => {
     if (!user) {
@@ -334,7 +301,6 @@ export const ProjectFormPage = () => {
       status: values.status,
       startDate: values.startDate || null,
       dueDate: values.dueDate || null,
-      rejectionReason: values.status === "rejected" ? values.rejectionReason?.trim() || null : null
     };
 
     try {
@@ -482,35 +448,6 @@ export const ProjectFormPage = () => {
                       disabled={isReadOnly}
                       {...register("dueDate")}
                     />
-                    {shouldShowApprovalFields ? (
-                      <>
-                        <Input
-                          label="Approved by"
-                          value={
-                            project?.approvedBy
-                              ? `${project.approvedBy.name} (${project.approvedBy.email})`
-                              : "Will populate after save"
-                          }
-                          readOnly
-                          disabled
-                        />
-                        <Input
-                          label="Approved at"
-                          value={project?.approvedAt ? formatDateTime(project.approvedAt) : "Will populate after save"}
-                          readOnly
-                          disabled
-                        />
-                      </>
-                    ) : null}
-                    {shouldShowRejectionReason ? (
-                      <Textarea
-                        label="Rejection reason"
-                        error={errors.rejectionReason?.message}
-                        placeholder="Required when the status is Rejected"
-                        disabled={isReadOnly}
-                        {...register("rejectionReason")}
-                      />
-                    ) : null}
                   </div>
                 </div>
 

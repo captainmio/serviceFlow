@@ -4,6 +4,48 @@ export class AddUserMasterData1720569600000 implements MigrationInterface {
   name = "AddUserMasterData1720569600000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    await this.safeUp(queryRunner);
+  }
+
+  public async safeUp(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
+      CREATE TABLE IF NOT EXISTS \`users\` (
+        \`id\` varchar(36) NOT NULL,
+        \`name\` varchar(120) NOT NULL,
+        \`email\` varchar(160) NOT NULL UNIQUE,
+        \`password_hash\` varchar(255) NOT NULL,
+        \`role\` enum('admin', 'manager', 'team_member') NOT NULL DEFAULT 'team_member',
+        \`created_at\` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+        \`updated_at\` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+        PRIMARY KEY (\`id\`)
+      )
+    `);
+    await queryRunner.query(`
+      CREATE TABLE IF NOT EXISTS \`customers\` (
+        \`id\` varchar(36) NOT NULL,
+        \`company_name\` varchar(160) NOT NULL,
+        \`contact_person\` varchar(120) NOT NULL,
+        \`email\` varchar(160) NOT NULL UNIQUE,
+        \`phone\` varchar(40) NOT NULL,
+        \`address\` varchar(255) NOT NULL,
+        \`status\` enum('active', 'inactive') NOT NULL DEFAULT 'active',
+        \`created_at\` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+        \`updated_at\` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+        PRIMARY KEY (\`id\`)
+      ) ENGINE=InnoDB
+    `);
+    await queryRunner.query(`
+      CREATE TABLE IF NOT EXISTS \`services\` (
+        \`id\` varchar(36) NOT NULL,
+        \`name\` varchar(160) NOT NULL UNIQUE,
+        \`description\` varchar(255) NOT NULL DEFAULT '',
+        \`default_hourly_rate\` decimal(10,2) NOT NULL,
+        \`status\` enum('active', 'inactive') NOT NULL DEFAULT 'active',
+        \`created_at\` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+        \`updated_at\` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+        PRIMARY KEY (\`id\`)
+      ) ENGINE=InnoDB
+    `);
     await queryRunner.query("ALTER TABLE `users` CHANGE `id` `uuid` varchar(36) NOT NULL");
     await queryRunner.query("ALTER TABLE `users` ADD `member_id` int NOT NULL AUTO_INCREMENT UNIQUE");
     await queryRunner.query(
@@ -48,6 +90,10 @@ export class AddUserMasterData1720569600000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await this.safeDown(queryRunner);
+  }
+
+  public async safeDown(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query("ALTER TABLE `users` DROP COLUMN `max_work_hours_per_week`");
     await queryRunner.query("ALTER TABLE `users` DROP COLUMN `max_work_hours_per_day`");
     await queryRunner.query("ALTER TABLE `users` DROP COLUMN `end_date`");

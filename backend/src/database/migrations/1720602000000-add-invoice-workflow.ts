@@ -11,6 +11,10 @@ export class AddInvoiceWorkflow1720602000000 implements MigrationInterface {
   name = "AddInvoiceWorkflow1720602000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    await this.safeUp(queryRunner);
+  }
+
+  public async safeUp(queryRunner: QueryRunner): Promise<void> {
     const hasInvoicesTable = await queryRunner.hasTable("invoices");
 
     if (!hasInvoicesTable) {
@@ -266,6 +270,10 @@ export class AddInvoiceWorkflow1720602000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await this.safeDown(queryRunner);
+  }
+
+  public async safeDown(queryRunner: QueryRunner): Promise<void> {
     if (await queryRunner.hasTable("process_queue_jobs")) {
       await queryRunner.dropTable("process_queue_jobs");
     }

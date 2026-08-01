@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from "react";
-import { NavLink } from "react-router-dom";
+import { useEffect, useState, type ReactNode } from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import { logoutRequest } from "../../../services/auth-api";
 import { useAuthStore } from "../../../stores/auth-store";
 import { Button } from "../../ui/button";
@@ -16,8 +16,11 @@ const extendedNavigationItems: NavigationItem[] = [
   { label: "Work Logs", to: "/work-logs" },
   { label: "Project Approvals", to: "/project-approvals", roles: ["admin", "manager"] },
   { label: "Invoices", to: "/invoices", roles: ["admin", "manager"] },
-  { label: "Customers", to: "/customers", roles: ["admin", "manager"] },
   { label: "Services", to: "/services", roles: ["admin"] },
+];
+
+const workManagementItems: NavigationItem[] = [
+  { label: "Customers", to: "/customers", roles: ["admin", "manager"] },
   { label: "Projects", to: "/projects", roles: ["admin", "manager"] },
   { label: "Team Members", to: "/team-members", roles: ["admin", "manager"] }
 ];
@@ -38,11 +41,23 @@ interface AppShellProps {
 export const AppShell = ({ title, eyebrow, description, children }: AppShellProps) => {
   const user = useAuthStore((state) => state.user);
   const setAnonymous = useAuthStore((state) => state.setAnonymous);
+  const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const isWorkManagementActive = workManagementItems.some((item) => location.pathname.startsWith(item.to));
+  const [isWorkManagementOpen, setIsWorkManagementOpen] = useState(isWorkManagementActive);
   const visibleNavigationItems = extendedNavigationItems.filter(
     (item) => !item.roles || (user ? item.roles.includes(user.role) : false)
   );
+  const visibleWorkManagementItems = workManagementItems.filter(
+    (item) => !item.roles || (user ? item.roles.includes(user.role) : false)
+  );
+
+  useEffect(() => {
+    if (isWorkManagementActive) {
+      setIsWorkManagementOpen(true);
+    }
+  }, [isWorkManagementActive]);
 
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);
@@ -115,6 +130,53 @@ export const AppShell = ({ title, eyebrow, description, children }: AppShellProp
                   {item.label}
                 </NavLink>
               ))}
+              {visibleWorkManagementItems.length > 0 ? (
+                <div className="pt-3">
+                  <button
+                    className={`flex min-h-12 w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm font-semibold transition ${
+                      isWorkManagementActive
+                        ? "bg-[#F4F7FE] text-[#4318FF]"
+                        : "bg-[#FBFCFF] text-[#707EAE] hover:bg-[#F8FAFF] hover:text-[#2B3674]"
+                    }`}
+                    type="button"
+                    aria-expanded={isWorkManagementOpen}
+                    onClick={() => setIsWorkManagementOpen((isOpen) => !isOpen)}
+                  >
+                    Work Management
+                    <svg
+                      aria-hidden="true"
+                      className={`h-4 w-4 shrink-0 transition-transform ${isWorkManagementOpen ? "rotate-180" : ""}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
+                    </svg>
+                  </button>
+                  {isWorkManagementOpen ? (
+                    <div className="mt-2 space-y-2">
+                      {visibleWorkManagementItems.map((item) => (
+                        <NavLink
+                          key={item.label}
+                          to={item.to}
+                          onClick={closeMobileMenu}
+                          className={({ isActive }) =>
+                            [
+                              "flex min-h-12 items-center rounded-2xl px-4 py-3 text-sm font-semibold transition",
+                              isActive
+                                ? "bg-[#F4F7FE] text-[#4318FF]"
+                                : "bg-[#FBFCFF] text-[#707EAE] hover:bg-[#F8FAFF] hover:text-[#2B3674]"
+                            ].join(" ")
+                          }
+                        >
+                          {item.label}
+                        </NavLink>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
               <button
                 className="flex min-h-12 w-full items-center rounded-2xl bg-[#FBFCFF] px-4 py-3 text-left text-sm font-semibold text-rose-600 transition hover:bg-rose-50"
                 type="button"
@@ -159,6 +221,52 @@ export const AppShell = ({ title, eyebrow, description, children }: AppShellProp
                 {item.label}
               </NavLink>
             ))}
+            {visibleWorkManagementItems.length > 0 ? (
+              <div className="mt-1">
+                <button
+                  className={`flex min-h-11 w-full items-center justify-between rounded-2xl px-4 py-2.5 text-left text-sm font-semibold transition ${
+                    isWorkManagementActive
+                      ? "bg-[#F4F7FE] text-[#4318FF]"
+                      : "text-[#707EAE] hover:bg-[#F8FAFF] hover:text-[#2B3674]"
+                  }`}
+                  type="button"
+                  aria-expanded={isWorkManagementOpen}
+                  onClick={() => setIsWorkManagementOpen((isOpen) => !isOpen)}
+                >
+                  Work Management
+                  <svg
+                    aria-hidden="true"
+                    className={`h-4 w-4 shrink-0 transition-transform ${isWorkManagementOpen ? "rotate-180" : ""}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
+                  </svg>
+                </button>
+                {isWorkManagementOpen ? (
+                  <div className="mt-2 flex flex-col gap-1.5">
+                    {visibleWorkManagementItems.map((item) => (
+                      <NavLink
+                        key={item.label}
+                        to={item.to}
+                        className={({ isActive }) =>
+                          [
+                            "flex min-h-11 items-center rounded-2xl px-4 py-2.5 text-sm font-semibold transition",
+                            isActive
+                              ? "bg-[#F4F7FE] text-[#4318FF]"
+                              : "text-[#707EAE] hover:bg-[#F8FAFF] hover:text-[#2B3674]"
+                          ].join(" ")
+                        }
+                      >
+                        {item.label}
+                      </NavLink>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </nav>
 
           <div className="mt-auto rounded-[1.5rem] bg-[linear-gradient(180deg,#7551FF_0%,#4318FF_100%)] p-4 text-white shadow-[0_18px_40px_rgba(67,24,255,0.28)]">

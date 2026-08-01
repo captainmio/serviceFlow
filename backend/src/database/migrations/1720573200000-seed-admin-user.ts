@@ -5,6 +5,10 @@ export class SeedAdminUser1720573200000 implements MigrationInterface {
   name = "SeedAdminUser1720573200000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    await this.safeUp(queryRunner);
+  }
+
+  public async safeUp(queryRunner: QueryRunner): Promise<void> {
     const existingUsers = await queryRunner.query(
       "SELECT `uuid` FROM `users` WHERE LOWER(`email`) = LOWER(?) LIMIT 1",
       ["admin"]
@@ -72,6 +76,10 @@ export class SeedAdminUser1720573200000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await this.safeDown(queryRunner);
+  }
+
+  public async safeDown(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query("DELETE FROM `users` WHERE LOWER(`email`) = LOWER(?)", ["admin"]);
   }
 }

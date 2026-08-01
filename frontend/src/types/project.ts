@@ -1,14 +1,10 @@
 import type { AuthUser } from "./auth";
 
 export type ProjectStatus =
-  | "draft"
-  | "assigned"
+  | "not_started"
   | "in_progress"
-  | "submitted"
-  | "approved"
-  | "rejected"
-  | "invoiced"
-  | "paid"
+  | "on_hold"
+  | "completed"
   | "cancelled";
 
 export interface ProjectServiceAssignmentPayload {
@@ -26,7 +22,6 @@ export interface ProjectPayload {
   status: ProjectStatus;
   startDate: string | null;
   dueDate: string | null;
-  rejectionReason: string | null;
 }
 
 export interface ProjectServiceAssignment extends ProjectServiceAssignmentPayload {
@@ -43,6 +38,7 @@ export interface Project extends ProjectPayload {
   serviceAssignments: ProjectServiceAssignment[];
   approvedBy: AuthUser | null;
   approvedAt: string | null;
+  rejectionReason: string | null;
   createdAt: string;
   updatedAt: string;
 }

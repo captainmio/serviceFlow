@@ -8,14 +8,10 @@ interface ProjectTableProps {
 }
 
 const statusClassNames: Record<Project["status"], string> = {
-  draft: "bg-slate-100 text-slate-700",
-  assigned: "bg-blue-50 text-blue-700",
+  not_started: "bg-slate-100 text-slate-700",
   in_progress: "bg-amber-50 text-amber-700",
-  submitted: "bg-violet-50 text-violet-700",
-  approved: "bg-emerald-50 text-emerald-700",
-  rejected: "bg-rose-50 text-rose-700",
-  invoiced: "bg-cyan-50 text-cyan-700",
-  paid: "bg-teal-50 text-teal-700",
+  on_hold: "bg-orange-50 text-orange-700",
+  completed: "bg-emerald-50 text-emerald-700",
   cancelled: "bg-slate-200 text-slate-600"
 };
 

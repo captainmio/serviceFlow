@@ -1,12 +1,8 @@
 export const jobStatuses = [
-  "draft",
-  "assigned",
+  "not_started",
   "in_progress",
-  "submitted",
-  "approved",
-  "rejected",
-  "invoiced",
-  "paid",
+  "on_hold",
+  "completed",
   "cancelled"
 ] as const;
 

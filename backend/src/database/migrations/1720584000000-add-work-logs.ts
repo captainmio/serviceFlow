@@ -4,6 +4,10 @@ export class AddWorkLogs1720584000000 implements MigrationInterface {
   name = "AddWorkLogs1720584000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    await this.safeUp(queryRunner);
+  }
+
+  public async safeUp(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       CREATE TABLE \`work_log_periods\` (
         \`id\` varchar(36) NOT NULL,
@@ -65,6 +69,10 @@ export class AddWorkLogs1720584000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await this.safeDown(queryRunner);
+  }
+
+  public async safeDown(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query("ALTER TABLE `work_logs` DROP FOREIGN KEY `FK_work_logs_user_id`");
     await queryRunner.query("ALTER TABLE `work_logs` DROP FOREIGN KEY `FK_work_logs_job_service_id`");
     await queryRunner.query("ALTER TABLE `work_logs` DROP FOREIGN KEY `FK_work_logs_job_id`");

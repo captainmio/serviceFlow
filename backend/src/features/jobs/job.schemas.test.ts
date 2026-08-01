@@ -15,13 +15,13 @@ test("job payload schema accepts a valid job payload", () => {
         assignedToIds: ["22222222-2222-2222-2222-222222222222"]
       }
     ],
-    status: "assigned",
+    status: "not_started",
     startDate: "2026-07-09",
     dueDate: "2026-07-20",
     rejectionReason: null
   });
 
-  assert.equal(parsed.status, "assigned");
+  assert.equal(parsed.status, "not_started");
 });
 
 test("job payload schema rejects a due date before the start date", () => {
@@ -45,7 +45,7 @@ test("job payload schema rejects a due date before the start date", () => {
   );
 });
 
-test("job payload schema requires a rejection reason for rejected jobs", () => {
+test("job payload schema rejects legacy project statuses", () => {
   assert.throws(() =>
     jobPayloadSchema.parse({
       title: "Quarterly maintenance sprint",
@@ -59,10 +59,10 @@ test("job payload schema requires a rejection reason for rejected jobs", () => {
           assignedToIds: ["22222222-2222-2222-2222-222222222222"]
         }
       ],
-      status: "rejected",
+      status: "approved",
       startDate: null,
       dueDate: null,
-      rejectionReason: ""
+      rejectionReason: null
     })
   );
 });
@@ -130,7 +130,7 @@ test("job payload schema rejects duplicate services on the same project", () => 
           assignedToIds: ["22222222-2222-2222-2222-222222222222"]
         }
       ],
-      status: "assigned",
+      status: "not_started",
       startDate: "2026-07-09",
       dueDate: "2026-07-20",
       rejectionReason: null

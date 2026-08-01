@@ -30,7 +30,7 @@ test("job service assignment builder preserves an existing assignment id when up
         assignedToIds: ["user-1", "user-2"]
       }
     ],
-    status: "draft",
+    status: "not_started",
     startDate: null,
     dueDate: null,
     rejectionReason: null
