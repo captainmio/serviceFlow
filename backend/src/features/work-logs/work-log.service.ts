@@ -279,6 +279,9 @@ const ensureVisibleWorkLog = (workLog: WorkLog, authUser: AuthenticatedUser) => 
 };
 
 const ensureProjectIsOpenForWorkLogs = async (project: Job, monthStart: string) => {
+  // Historical or approved months are immutable. Changing them after approval
+  // would make the manager decision and any invoice total disagree with the
+  // underlying work-log data.
   if (blockedProjectStatuses.has(project.status)) {
     throw new WorkLogValidationError(
       "Work logs cannot be changed once the project is completed or cancelled"
@@ -331,6 +334,9 @@ const ensureWeekNotSubmittedForNonAdmin = async (
   weekStart: string,
   monthStart: string
 ) => {
+  // Team members may edit only before weekly submission. Managers and admins
+  // review submitted data through the approval workflow instead of silently
+  // changing the employee's original entry.
   if (authUser.role === "admin") {
     return;
   }

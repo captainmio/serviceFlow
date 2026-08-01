@@ -4,6 +4,8 @@ export class AddInvoiceResubmittedAt1720607400000 implements MigrationInterface 
   name = "AddInvoiceResubmittedAt1720607400000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    // The nullable timestamp distinguishes an editable draft from one that has
+    // already been resubmitted and must now remain locked.
     if (!(await queryRunner.hasTable("invoices"))) {
       return;
     }

@@ -41,6 +41,8 @@ const handleUserError = (error: unknown, response: Response) => {
   return false;
 };
 
+/** Returns active, assignable users for project and service forms; this avoids
+ * exposing blocked or inactive accounts as new assignee choices. */
 export const listAssignableUsersHandler = async (
   _request: AuthenticatedRequest,
   response: Response
@@ -53,6 +55,8 @@ export const listAssignableUsersHandler = async (
   }
 };
 
+/** Parses search/status filters and returns the team-member list used by the
+ * administration screen. */
 export const listTeamMembersHandler = async (
   request: AuthenticatedRequest,
   response: Response
@@ -70,6 +74,8 @@ export const listTeamMembersHandler = async (
   }
 };
 
+/** Validates role, login, hours, and password rules before creating a team
+ * member, including duplicate-account handling. */
 export const createTeamMemberHandler = async (
   request: AuthenticatedRequest,
   response: Response
@@ -87,6 +93,8 @@ export const createTeamMemberHandler = async (
   }
 };
 
+/** Loads one team member for the administration detail/edit screen and returns
+ * 404 rather than exposing a database lookup failure. */
 export const getTeamMemberHandler = async (
   request: AuthenticatedRequest,
   response: Response
@@ -105,6 +113,8 @@ export const getTeamMemberHandler = async (
   }
 };
 
+/** Updates a team member after applying the same account and scheduling rules
+ * used during creation. */
 export const updateTeamMemberHandler = async (
   request: AuthenticatedRequest,
   response: Response
@@ -128,6 +138,8 @@ export const updateTeamMemberHandler = async (
   }
 };
 
+/** Changes only the authenticated user's password and requires the existing
+ * password before accepting the replacement. */
 export const changeOwnPasswordHandler = async (
   request: AuthenticatedRequest,
   response: Response

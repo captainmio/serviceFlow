@@ -23,6 +23,8 @@ const handleServiceMutationError = (error: unknown, response: Response) => {
   return false;
 };
 
+/** Parses the service-list filters and returns services matching the requested
+ * search text and active/inactive state. */
 export const listServicesHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
     const query = serviceListQuerySchema.parse(request.query);
@@ -37,6 +39,8 @@ export const listServicesHandler = async (request: AuthenticatedRequest, respons
   }
 };
 
+/** Validates the service name and creates the reusable billable service used by
+ * project assignments and work-log calculations. */
 export const createServiceHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
     const payload = servicePayloadSchema.parse(request.body);
@@ -51,6 +55,8 @@ export const createServiceHandler = async (request: AuthenticatedRequest, respon
   }
 };
 
+/** Validates and updates the selected service while preserving its historical
+ * references in existing projects and invoices. */
 export const updateServiceHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
     const payload = servicePayloadSchema.parse(request.body);
@@ -71,6 +77,8 @@ export const updateServiceHandler = async (request: AuthenticatedRequest, respon
   }
 };
 
+/** Marks a service inactive instead of deleting it, so historical work logs and
+ * invoices continue to display the original service information. */
 export const deactivateServiceHandler = async (
   request: AuthenticatedRequest,
   response: Response

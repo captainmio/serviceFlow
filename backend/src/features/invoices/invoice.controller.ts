@@ -49,6 +49,10 @@ const handleInvoiceError = (error: unknown, response: Response) => {
   return false;
 };
 
+/**
+ * Returns invoice-ready project months plus workflow invoices. The service
+ * applies role and project visibility rules before the response is returned.
+ */
 export const listInvoicesHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
     const authUser = requireAuthenticatedUser(request, response);
@@ -68,6 +72,10 @@ export const listInvoicesHandler = async (request: AuthenticatedRequest, respons
   }
 };
 
+/**
+ * Loads the invoice, its source months, and workflow metadata. Access is
+ * checked again here because notification links can be opened directly.
+ */
 export const getInvoiceDetailHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
     const authUser = requireAuthenticatedUser(request, response);
@@ -87,6 +95,10 @@ export const getInvoiceDetailHandler = async (request: AuthenticatedRequest, res
   }
 };
 
+/**
+ * Creates a draft only from approved project months whose work logs are fully
+ * submitted and not already reserved by another active invoice.
+ */
 export const createInvoiceDraftHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
     const authUser = requireAuthenticatedUser(request, response);
@@ -107,6 +119,10 @@ export const createInvoiceDraftHandler = async (request: AuthenticatedRequest, r
   }
 };
 
+/**
+ * Permanently removes an editable admin draft, its invoice items, and related
+ * workflow records so the underlying work logs can be invoiced again.
+ */
 export const deleteInvoiceDraftHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
     const authUser = requireAuthenticatedUser(request, response);
@@ -126,6 +142,10 @@ export const deleteInvoiceDraftHandler = async (request: AuthenticatedRequest, r
   }
 };
 
+/**
+ * Records the manager's required feedback, changes the draft to rejected, and
+ * notifies admins that corrections are needed before another review.
+ */
 export const rejectInvoiceHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
     const authUser = requireAuthenticatedUser(request, response);
@@ -146,6 +166,10 @@ export const rejectInvoiceHandler = async (request: AuthenticatedRequest, respon
   }
 };
 
+/**
+ * Updates an admin-editable draft and resubmits it. After this succeeds, the
+ * draft is locked until a manager rejects it again.
+ */
 export const updateInvoiceDraftHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
     const authUser = requireAuthenticatedUser(request, response);
@@ -166,6 +190,10 @@ export const updateInvoiceDraftHandler = async (request: AuthenticatedRequest, r
   }
 };
 
+/**
+ * Applies a role-specific workflow transition such as manager approval,
+ * administrator issuing, or marking an issued invoice as paid.
+ */
 export const updateInvoiceStatusHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
     const authUser = requireAuthenticatedUser(request, response);
@@ -186,6 +214,7 @@ export const updateInvoiceStatusHandler = async (request: AuthenticatedRequest, 
   }
 };
 
+/** Returns recent invoice workflow notifications for the authenticated user. */
 export const listNotificationsHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
     const authUser = requireAuthenticatedUser(request, response);
@@ -205,6 +234,7 @@ export const listNotificationsHandler = async (request: AuthenticatedRequest, re
   }
 };
 
+/** Marks all unread invoice notifications for the authenticated user as read. */
 export const markAllNotificationsReadHandler = async (
   request: AuthenticatedRequest,
   response: Response

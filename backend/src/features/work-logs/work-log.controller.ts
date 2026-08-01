@@ -52,6 +52,8 @@ const handleWorkLogError = (error: unknown, response: Response) => {
   return false;
 };
 
+/** Returns the projects, services, and assignees allowed by the current user so
+ * the work-log form cannot submit arbitrary relationship IDs. */
 export const listWorkLogOptionsHandler = async (
   request: AuthenticatedRequest,
   response: Response
@@ -70,6 +72,8 @@ export const listWorkLogOptionsHandler = async (
   }
 };
 
+/** Parses date/project/member filters and returns only work logs visible to the
+ * current role and ownership rules. */
 export const listWorkLogsHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
     const authUser = requireAuthenticatedUser(request, response);
@@ -90,6 +94,8 @@ export const listWorkLogsHandler = async (request: AuthenticatedRequest, respons
   }
 };
 
+/** Loads one work log for editing or review after enforcing ownership and role
+ * access in the service layer. */
 export const getWorkLogHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
     const authUser = requireAuthenticatedUser(request, response);
@@ -109,6 +115,8 @@ export const getWorkLogHandler = async (request: AuthenticatedRequest, response:
   }
 };
 
+/** Validates a new line, confirms the project month is open, and applies daily
+ * and weekly hour limits before saving it. */
 export const createWorkLogHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
     const authUser = requireAuthenticatedUser(request, response);
@@ -129,6 +137,8 @@ export const createWorkLogHandler = async (request: AuthenticatedRequest, respon
   }
 };
 
+/** Updates a line only when its project month and submission state still allow
+ * edits; submitted or approved data is protected from casual changes. */
 export const updateWorkLogHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
     const authUser = requireAuthenticatedUser(request, response);
@@ -149,6 +159,8 @@ export const updateWorkLogHandler = async (request: AuthenticatedRequest, respon
   }
 };
 
+/** Deletes a line only before the relevant submission/approval lock is reached,
+ * returning the same domain errors as create and update. */
 export const deleteWorkLogHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
     const authUser = requireAuthenticatedUser(request, response);
@@ -168,6 +180,8 @@ export const deleteWorkLogHandler = async (request: AuthenticatedRequest, respon
   }
 };
 
+/** Returns month-level approval, missing-week, and submission state used by the
+ * work-log and manager approval screens. */
 export const getWorkLogPeriodHandler = async (
   request: AuthenticatedRequest,
   response: Response
@@ -195,6 +209,8 @@ export const getWorkLogPeriodHandler = async (
   }
 };
 
+/** Applies the manager/admin month review decision after validating the review
+ * reason and the current period state. */
 export const reviewWorkLogPeriodHandler = async (
   request: AuthenticatedRequest,
   response: Response
@@ -218,6 +234,8 @@ export const reviewWorkLogPeriodHandler = async (
   }
 };
 
+/** Marks a complete weekly submission as submitted, which makes its lines
+ * eligible for manager review and later invoice creation. */
 export const submitWorkLogWeekHandler = async (
   request: AuthenticatedRequest,
   response: Response
@@ -245,6 +263,8 @@ export const submitWorkLogWeekHandler = async (
   }
 };
 
+/** Withdraws a weekly submission only when the workflow has not advanced too
+ * far for the current role to safely edit it again. */
 export const unsubmitWorkLogWeekHandler = async (
   request: AuthenticatedRequest,
   response: Response

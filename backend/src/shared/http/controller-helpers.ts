@@ -8,6 +8,7 @@ interface RequestWithAuthUser<TAuthUser> {
 export const readRouteParam = (value: string | string[] | undefined) =>
   typeof value === "string" ? value : "";
 
+/** Converts Zod validation failures into the API's consistent 400 response. */
 export const respondWithZodError = (
   response: Response,
   error: unknown,
@@ -24,6 +25,7 @@ export const respondWithZodError = (
   return true;
 };
 
+/** Safely extracts middleware-authenticated user data inside a controller. */
 export const requireAuthenticatedUser = <TAuthUser>(
   request: RequestWithAuthUser<TAuthUser>,
   response: Response
@@ -35,4 +37,3 @@ export const requireAuthenticatedUser = <TAuthUser>(
 
   return request.authUser;
 };
-

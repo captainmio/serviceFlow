@@ -29,6 +29,10 @@ const handleMutationError = (error: unknown, response: Response) => {
   return false;
 };
 
+/**
+ * Parses list filters and returns customers. Query validation is kept at the
+ * controller boundary so the service receives predictable values.
+ */
 export const listCustomersHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
     const query = customerListQuerySchema.parse(request.query);
@@ -43,6 +47,8 @@ export const listCustomersHandler = async (request: AuthenticatedRequest, respon
   }
 };
 
+/** Validates the request body and creates a customer, translating duplicate
+ * email and validation failures into client-friendly responses. */
 export const createCustomerHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
     const payload = customerPayloadSchema.parse(request.body);
@@ -57,6 +63,8 @@ export const createCustomerHandler = async (request: AuthenticatedRequest, respo
   }
 };
 
+/** Validates the body, updates the route-selected customer, and returns 404
+ * when the requested customer does not exist. */
 export const updateCustomerHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
     const payload = customerPayloadSchema.parse(request.body);
@@ -77,6 +85,8 @@ export const updateCustomerHandler = async (request: AuthenticatedRequest, respo
   }
 };
 
+/** Attempts a delete and returns the service's dependency conflict when active
+ * projects or other protected records still refer to the customer. */
 export const deleteCustomerHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
     const deleted = await deleteCustomer(readRouteParam(request.params.customerId));

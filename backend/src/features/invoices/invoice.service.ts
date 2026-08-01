@@ -121,6 +121,9 @@ const getProjectAssignedMembers = (project: Job) => {
 };
 
 const buildMissingWeeksByMember = async (project: Job, monthStart: string) => {
+  // Invoice eligibility requires every assigned member to have a submitted week
+  // covering the project month. This prevents an admin from invoicing a partial
+  // month while another team member still has unsubmitted work.
   const members = getProjectAssignedMembers(project);
   const expectedWeekStarts = buildExpectedWeekStarts({
     monthStart,
@@ -257,6 +260,9 @@ const loadInvoicedWorkLogIds = async (workLogIds: string[]) => {
     return new Set<string>();
   }
 
+  // Cancelled/deleted drafts must not permanently reserve work-log lines. Only
+  // non-cancelled invoices count as conflicts, which is why deleting a draft
+  // makes the same work logs available for a new invoice.
   const items = await appDataSource.getRepository(InvoiceItem).find({
     where: {
       workLog: { id: In(workLogIds) },
@@ -295,6 +301,9 @@ const loadApprovedPeriods = async () =>
   });
 
 const createEligibleMonthResponse = async (period: WorkLogPeriod): Promise<InvoiceEligibleMonthResponse | null> => {
+  // Compute eligibility from current submissions and invoice items rather than
+  // cached totals. This keeps the create screen accurate after a submission,
+  // approval, cancellation, or draft deletion changes the underlying data.
   if (!isProjectMonthInvoiceEligible(period.status)) {
     return null;
   }
@@ -689,6 +698,8 @@ const processInvoiceIssueRequestedJob = async (queueJob: ProcessQueueJob) => {
 };
 
 export const processPendingQueueJobs = async () => {
+  // Process a small batch at a time so notifications do not block invoice writes.
+  // A failed job is retained with its error and retry time instead of being lost.
   const repository = appDataSource.getRepository(ProcessQueueJob);
   let queueJobs: ProcessQueueJob[] = [];
 
@@ -925,6 +936,9 @@ export const createInvoiceDraft = async (
   }
 
   try {
+    // Invoice and invoice-item creation share one transaction. The unique
+    // work-log constraint is the final safeguard against two admins selecting
+    // the same source lines at the same time.
     const invoiceId = await appDataSource.transaction(async (transactionManager) => {
       const invoiceRepository = transactionManager.getRepository(Invoice);
       const itemRepository = transactionManager.getRepository(InvoiceItem);
@@ -1023,6 +1037,9 @@ export const updateInvoiceStatus = async (
     throw new InvoiceAccessError("Unable to identify the active user");
   }
 
+  // Status changes and follow-up queue jobs must commit together. Otherwise an
+  // invoice could appear approved while the notification that drives the next
+  // workflow step was never stored.
   await appDataSource.transaction(async (transactionManager) => {
     invoice.status = payload.status;
 
@@ -1078,6 +1095,8 @@ export const rejectInvoice = async (
     throw new InvoiceAccessError("Unable to identify the active manager");
   }
 
+  // Rejection records the manager's feedback, reopens the admin edit path, and
+  // resets the resubmission lock so a later correction can be reviewed again.
   await appDataSource.transaction(async (transactionManager) => {
     invoice.status = "rejected";
     invoice.rejectedBy = actingUser;
@@ -1147,6 +1166,8 @@ export const deleteInvoiceDraft = async (invoiceId: string, authUser: Authentica
     throw new InvoiceValidationError("Only invoice drafts can be deleted");
   }
 
+  // Delete related queue records and notifications with the invoice. This keeps
+  // a deleted draft from leaving a stale notification that links to missing data.
   await appDataSource.transaction(async (transactionManager) => {
     const queueRepository = transactionManager.getRepository(ProcessQueueJob);
     const queueJobs = await queueRepository.find();

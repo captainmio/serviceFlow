@@ -47,6 +47,8 @@ const handleJobError = (error: unknown, response: Response) => {
   return false;
 };
 
+/** Parses project filters and returns only projects the current role is allowed
+ * to see, including manager-specific visibility rules. */
 export const listJobsHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
     const authUser = requireAuthenticatedUser(request, response);
@@ -67,6 +69,8 @@ export const listJobsHandler = async (request: AuthenticatedRequest, response: R
   }
 };
 
+/** Loads one project by route ID. The service performs the definitive access
+ * check instead of trusting the caller's route or role alone. */
 export const getJobHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
     const authUser = requireAuthenticatedUser(request, response);
@@ -86,6 +90,8 @@ export const getJobHandler = async (request: AuthenticatedRequest, response: Res
   }
 };
 
+/** Validates project dates, customer, manager, services, and assignees before
+ * creating the project and its relationship records. */
 export const createJobHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
     const payload = jobPayloadSchema.parse(request.body);
@@ -106,6 +112,8 @@ export const createJobHandler = async (request: AuthenticatedRequest, response: 
   }
 };
 
+/** Applies a validated project update and synchronizes its service and assignee
+ * relationships without allowing invalid status/date combinations. */
 export const updateJobHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
     const payload = jobPayloadSchema.parse(request.body);
@@ -126,6 +134,8 @@ export const updateJobHandler = async (request: AuthenticatedRequest, response: 
   }
 };
 
+/** Cancels a project only when its current workflow state and dependent-record
+ * rules permit cancellation. */
 export const cancelJobHandler = async (request: AuthenticatedRequest, response: Response) => {
   try {
     const authUser = requireAuthenticatedUser(request, response);

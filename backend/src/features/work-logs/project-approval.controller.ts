@@ -47,6 +47,10 @@ const handleProjectApprovalError = (error: unknown, response: Response) => {
   return false;
 };
 
+/**
+ * Lists approval months and queue state for projects visible to the manager or
+ * admin, including only submitted work-log information.
+ */
 export const listProjectApprovalsHandler = async (
   request: AuthenticatedRequest,
   response: Response
@@ -70,6 +74,10 @@ export const listProjectApprovalsHandler = async (
   }
 };
 
+/**
+ * Returns the selected project's month summary, missing-week state, and the
+ * submitted work-log lines that can be reviewed.
+ */
 export const getProjectApprovalDetailHandler = async (
   request: AuthenticatedRequest,
   response: Response
@@ -97,6 +105,10 @@ export const getProjectApprovalDetailHandler = async (
   }
 };
 
+/**
+ * Saves one line-level approval decision. The service prevents unsubmitted
+ * lines and unauthorized users from entering the approval workflow.
+ */
 export const reviewProjectApprovalLineHandler = async (
   request: AuthenticatedRequest,
   response: Response
@@ -120,6 +132,10 @@ export const reviewProjectApprovalLineHandler = async (
   }
 };
 
+/**
+ * Finalizes the month-level decision only after the service validates all
+ * required submissions and the manager's rejection reason when applicable.
+ */
 export const finalizeProjectApprovalMonthHandler = async (
   request: AuthenticatedRequest,
   response: Response
@@ -143,6 +159,10 @@ export const finalizeProjectApprovalMonthHandler = async (
   }
 };
 
+/**
+ * Cancels an approval and returns the month to pending while preserving the
+ * work logs for another manager review cycle.
+ */
 export const cancelProjectApprovalMonthHandler = async (
   request: AuthenticatedRequest,
   response: Response

@@ -87,6 +87,9 @@ const findAssignableUsersByIds = async (assignedToIds: string[]) => {
 };
 
 const buildJobServiceAssignments = async (payload: JobPayload) => {
+  // Preserve assignment IDs when rebuilding the validated relationship set. This
+  // lets updates replace removed assignments while keeping unchanged rows stable
+  // and avoiding duplicate relationship records.
   const serviceRepository = appDataSource.getRepository(Service);
   const serviceIds = Array.from(new Set(payload.serviceAssignments.map((assignment) => assignment.serviceId)));
   const allAssignedUserIds = payload.serviceAssignments.flatMap((assignment) => assignment.assignedToIds);
@@ -140,6 +143,8 @@ const ensureJobTitleIsUnique = async (
   title: string,
   currentJobId?: string
 ) => {
+  // Project titles must be unique within a customer. Updates exclude the current
+  // project from the check so saving an unchanged title is still allowed.
   const jobRepository = appDataSource.getRepository(Job);
   const normalizedTitle = title.trim();
   const existingJobs = await jobRepository.find({

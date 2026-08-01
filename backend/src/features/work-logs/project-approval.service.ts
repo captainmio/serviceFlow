@@ -122,6 +122,9 @@ const getProjectAssignedMembers = (project: Job) => {
 };
 
 const buildMissingWeeksByMember = async (project: Job, monthStart: string) => {
+  // A month cannot be finalized until every assigned member has submitted all
+  // expected weeks that overlap the project's active dates. Boundary weeks are
+  // included because their days may still contribute billable work to the month.
   const members = getProjectAssignedMembers(project);
   const expectedWeekStarts = buildExpectedWeekStarts({
     monthStart,

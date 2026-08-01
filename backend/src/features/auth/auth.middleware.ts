@@ -14,6 +14,7 @@ export interface AuthenticatedRequest extends Request {
   authUser?: AuthenticatedRequestUser;
 }
 
+/** Resolves the access token from the cookie first, then the Bearer header. */
 export const requireAuth = (
   request: AuthenticatedRequest,
   response: Response,
@@ -53,6 +54,8 @@ export const requireAuth = (
 };
 
 export const requireRoles = (roles: UserRole[]) => {
+  // Role checks run after requireAuth so route declarations can compose both
+  // authentication and authorization without duplicating handler logic.
   return (request: AuthenticatedRequest, response: Response, next: NextFunction) => {
     if (!request.authUser) {
       response.status(401).json({ message: "Authentication is required" });

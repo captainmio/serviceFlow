@@ -9,6 +9,8 @@ export class AddInvoiceRejectionWorkflow1720605600000 implements MigrationInterf
   name = "AddInvoiceRejectionWorkflow1720605600000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    // This migration is defensive because older environments may have a partial
+    // invoice schema; each column, enum, and foreign key is checked before change.
     if (await queryRunner.hasTable("invoices")) {
       const invoiceTable = await queryRunner.getTable("invoices");
       const statusColumn = invoiceTable?.findColumnByName("status");

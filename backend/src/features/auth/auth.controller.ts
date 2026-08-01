@@ -44,6 +44,10 @@ const clearAuthCookies = (response: Response) => {
   response.clearCookie(REFRESH_TOKEN_COOKIE_NAME, cookieOptions);
 };
 
+/**
+ * Validates the submitted login values, authenticates the user, and issues the
+ * access/refresh cookie pair used by subsequent protected API requests.
+ */
 export const loginHandler = async (request: Request, response: Response) => {
   try {
     const credentials = loginSchema.parse(request.body);
@@ -77,6 +81,10 @@ export const loginHandler = async (request: Request, response: Response) => {
   }
 };
 
+/**
+ * Returns the user attached by requireAuth. This endpoint is intentionally
+ * read-only and is used by the frontend to restore a session after reload.
+ */
 export const sessionHandler = async (request: AuthenticatedRequest, response: Response) => {
   const authUser = requireAuthenticatedUser(request, response);
 
@@ -89,6 +97,10 @@ export const sessionHandler = async (request: AuthenticatedRequest, response: Re
   });
 };
 
+/**
+ * Reads the refresh cookie, verifies that it is a refresh token, and rotates
+ * both cookies. Invalid or missing refresh tokens are cleared and return 401.
+ */
 export const refreshHandler = async (request: Request, response: Response) => {
   try {
     const refreshToken = readCookieValue(request, REFRESH_TOKEN_COOKIE_NAME);
@@ -122,6 +134,10 @@ export const refreshHandler = async (request: Request, response: Response) => {
   }
 };
 
+/**
+ * Clears both authentication cookies. Logout remains idempotent, so it succeeds
+ * even when the access token has already expired.
+ */
 export const logoutHandler = (_request: Request, response: Response) => {
   clearAuthCookies(response);
   response.status(204).send();
